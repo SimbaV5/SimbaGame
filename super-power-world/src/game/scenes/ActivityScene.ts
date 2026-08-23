@@ -5,12 +5,35 @@ import { useActivityStore } from '@/stores/activityStore';
 import { usePlayerStore } from '@/stores/playerStore';
 
 export class ActivityScene extends Phaser.Scene {
+  private bgStars: Phaser.GameObjects.Text[] = [];
+
   constructor() { super('ActivityScene'); }
 
   create() {
     this.cameras.main.setBackgroundColor('#0e0e1e');
-    backBar(this, '活动中心', () => this.scene.start('MainScene'));
+    this.drawAnimatedBackground();
+    backBar(this, '🎁 活动中心', () => this.scene.start('MainScene'));
     this.drawActivities();
+  }
+
+  private drawAnimatedBackground() {
+    for (let i = 0; i < 18; i++) {
+      const x = Phaser.Math.Between(0, GAME_WIDTH);
+      const y = Phaser.Math.Between(0, GAME_HEIGHT);
+      const star = this.add.text(x, y, '✦', {
+        fontSize: `${Phaser.Math.Between(8, 14)}px`,
+        color: '#ef4444',
+      }).setOrigin(0.5).setAlpha(0.15);
+      this.bgStars.push(star);
+      this.tweens.add({
+        targets: star,
+        alpha: 0.3,
+        y: y - 30,
+        duration: Phaser.Math.Between(4000, 8000),
+        yoyo: true,
+        repeat: -1,
+      });
+    }
   }
 
   private drawActivities() {
@@ -18,12 +41,19 @@ export class ActivityScene extends Phaser.Scene {
     const cellH = 220;
     const cellW = GAME_WIDTH - 24;
     let y = 100;
-    activities.forEach((act) => {
+    activities.forEach((act, idx) => {
       const x = 12;
-      panel(this, x, y, cellW, cellH, 0x23234a);
+      const p = panel(this, x, y, cellW, cellH, 0x23234a);
+      // 入场动画
+      p.setAlpha(0);
+      p.x = x - 20;
+      this.tweens.add({
+        targets: p,
+        alpha: 1, x: x,
+        duration: 400, delay: idx * 80, ease: 'Cubic.easeOut',
+      });
       this.add.text(x + 12, y + 14, act.name, { fontSize: '24px', color: '#fbbf24', fontStyle: 'bold' });
       this.add.text(x + 12, y + 50, act.description, { fontSize: '16px', color: '#ffffffcc', wordWrap: { width: cellW - 200 } });
-      // 操作按钮
       const player = usePlayerStore();
       if (act.type === 'login') {
         const claimed = !!player.save.activitiesProgress[`act_login_${useActivityStore().dayIndex}`];
@@ -70,5 +100,9 @@ export class ActivityScene extends Phaser.Scene {
       }
       y += cellH + 10;
     });
+  }
+
+  shutdown() {
+    this.bgStars.forEach((s) => s.destroy());
   }
 }

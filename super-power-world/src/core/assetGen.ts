@@ -1,131 +1,44 @@
 // =========================================================
-// 程序化生成 Q 版立绘与 UI 资源
-// 使用 Canvas 绘制，最终输出 data URL 或 ImageBitmap
+// 程序化生成 Q 版立绘与 UI 资源 (V2 - 增强版)
 // =========================================================
 
 import type { HeroBase, HeroClass, HeroElement, HeroFaction, HeroRarity } from '@/types';
 
-const ELEMENT_COLOR: Record<HeroElement, { main: string; glow: string; bg: string }> = {
-  fire: { main: '#ff6b35', glow: '#ffa552', bg: 'linear-gradient(135deg,#3a1010,#5a1c1c)' },
-  water: { main: '#3a8ee6', glow: '#6ad1ff', bg: 'linear-gradient(135deg,#0d1b2a,#1b3a52)' },
-  wind: { main: '#7ed957', glow: '#bef264', bg: 'linear-gradient(135deg,#1a2e15,#28471d)' },
-  thunder: { main: '#facc15', glow: '#fef08a', bg: 'linear-gradient(135deg,#2e2a0d,#473b15)' },
-  light: { main: '#fde68a', glow: '#ffffff', bg: 'linear-gradient(135deg,#3a331a,#5a4d1f)' },
-  dark: { main: '#a78bfa', glow: '#c4b5fd', bg: 'linear-gradient(135deg,#160a2e,#2e1058)' },
+const ELEMENT_COLOR: Record<HeroElement, { main: string; glow: string; light: string; dark: string }> = {
+  fire: { main: '#ff6b35', glow: '#ffa552', light: '#ffd9a3', dark: '#7a1c0a' },
+  water: { main: '#3a8ee6', glow: '#6ad1ff', light: '#bfe1ff', dark: '#0d2a4a' },
+  wind: { main: '#7ed957', glow: '#bef264', light: '#dff5b8', dark: '#1f3d12' },
+  thunder: { main: '#facc15', glow: '#fef08a', light: '#fff7c0', dark: '#5a4a0a' },
+  light: { main: '#fde68a', glow: '#ffffff', light: '#fff8d8', dark: '#7a6a1a' },
+  dark: { main: '#a78bfa', glow: '#c4b5fd', light: '#ddd1ff', dark: '#2a1a5e' },
 };
 
-const FACTION_DECOR: Record<HeroFaction, (ctx: CanvasRenderingContext2D, x: number, y: number, size: number) => void> = {
-  celestial: (ctx, x, y, size) => {
-    ctx.fillStyle = '#fde68a';
-    ctx.beginPath();
-    ctx.arc(x, y - size * 0.55, size * 0.07, 0, Math.PI * 2);
-    ctx.fill();
-  },
-  abyss: (ctx, x, y, size) => {
-    ctx.fillStyle = '#a78bfa';
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.08, y - size * 0.55);
-    ctx.lineTo(x, y - size * 0.65);
-    ctx.lineTo(x + size * 0.08, y - size * 0.55);
-    ctx.closePath();
-    ctx.fill();
-  },
-  mecha: (ctx, x, y, size) => {
-    ctx.strokeStyle = '#94a3b8';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.12, y - size * 0.55);
-    ctx.lineTo(x + size * 0.12, y - size * 0.55);
-    ctx.stroke();
-  },
-  beast: (ctx, x, y, size) => {
-    ctx.fillStyle = '#fb923c';
-    ctx.beginPath();
-    ctx.moveTo(x - size * 0.08, y - size * 0.62);
-    ctx.lineTo(x, y - size * 0.5);
-    ctx.lineTo(x + size * 0.08, y - size * 0.62);
-    ctx.closePath();
-    ctx.fill();
-  },
-  spirit: (ctx, x, y, size) => {
-    ctx.strokeStyle = '#7dd3fc';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.ellipse(x, y - size * 0.55, size * 0.1, size * 0.05, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  },
-  human: (ctx, x, y, size) => {
-    ctx.fillStyle = '#fda4af';
-    ctx.fillRect(x - size * 0.06, y - size * 0.6, size * 0.12, size * 0.05);
-  },
+const RARITY_FRAME: Record<HeroRarity, { border: string; glow: string; corner: string }> = {
+  N: { border: '#9ca3af', glow: '#d1d5db', corner: '#9ca3af' },
+  R: { border: '#60a5fa', glow: '#93c5fd', corner: '#3b82f6' },
+  SR: { border: '#a78bfa', glow: '#c4b5fd', corner: '#8b5cf6' },
+  SSR: { border: '#fbbf24', glow: '#fde68a', corner: '#f59e0b' },
+  UR: { border: '#f97316', glow: '#fdba74', corner: '#ea580c' },
+  LR: { border: '#ef4444', glow: '#fca5a5', corner: '#dc2626' },
+  MRC: { border: '#ec4899', glow: '#f9a8d4', corner: '#db2777' },
 };
 
-const RARITY_BORDER: Record<HeroRarity, string> = {
-  N: '#9ca3af',
-  R: '#60a5fa',
-  SR: '#a78bfa',
-  SSR: '#fbbf24',
-  UR: '#f97316',
-  LR: '#ef4444',
-  MRC: '#ec4899',
+const FACTION_GLYPH: Record<HeroFaction, string> = {
+  celestial: '☀',
+  abyss: '☾',
+  mecha: '⚙',
+  beast: '⚔',
+  spirit: '✦',
+  human: '★',
 };
 
-const CLASS_SHAPE: Record<HeroClass, (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) => void> = {
-  tank: (ctx, x, y, s, c) => {
-    ctx.fillStyle = c;
-    ctx.fillRect(x - s * 0.45, y + s * 0.2, s * 0.9, s * 0.4);
-    ctx.fillStyle = '#475569';
-    ctx.fillRect(x - s * 0.45, y + s * 0.2, s * 0.9, s * 0.08);
-  },
-  warrior: (ctx, x, y, s, c) => {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.moveTo(x - s * 0.45, y + s * 0.5);
-    ctx.lineTo(x, y + s * 0.1);
-    ctx.lineTo(x + s * 0.45, y + s * 0.5);
-    ctx.closePath();
-    ctx.fill();
-  },
-  assassin: (ctx, x, y, s, c) => {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.4, s * 0.35, s * 0.25, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(x - s * 0.04, y + s * 0.15, s * 0.08, s * 0.45);
-  },
-  ranger: (ctx, x, y, s, c) => {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.arc(x, y + s * 0.4, s * 0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x + s * 0.3, y + s * 0.3);
-    ctx.lineTo(x + s * 0.7, y + s * 0.0);
-    ctx.stroke();
-  },
-  mage: (ctx, x, y, s, c) => {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.moveTo(x - s * 0.5, y + s * 0.55);
-    ctx.lineTo(x + s * 0.5, y + s * 0.55);
-    ctx.lineTo(x, y + s * 0.15);
-    ctx.closePath();
-    ctx.fill();
-  },
-  support: (ctx, x, y, s, c) => {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.arc(x, y + s * 0.4, s * 0.3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fef9c3';
-    ctx.font = `${s * 0.3}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('✦', x, y + s * 0.4);
-  },
+const CLASS_GLYPH: Record<HeroClass, string> = {
+  tank: '🛡',
+  warrior: '⚔',
+  assassin: '🗡',
+  ranger: '🏹',
+  mage: '✦',
+  support: '♥',
 };
 
 export function drawHeroPortrait(canvas: HTMLCanvasElement, hero: HeroBase) {
@@ -133,49 +46,114 @@ export function drawHeroPortrait(canvas: HTMLCanvasElement, hero: HeroBase) {
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-  const colors = ELEMENT_COLOR[hero.element];
+  const c = ELEMENT_COLOR[hero.element];
+  const f = RARITY_FRAME[hero.rarity];
+
+  // 背景渐变
   const bg = ctx.createLinearGradient(0, 0, size, size);
-  if (colors.bg.includes('linear')) {
-    const m = colors.bg.match(/linear-gradient\(([^,]+),\s*([^,]+),\s*([^)]+)\)/);
-    if (m) {
-      bg.addColorStop(0, m[2]);
-      bg.addColorStop(1, m[3]);
-    }
-  } else {
-    bg.addColorStop(0, '#1a1a2e');
-    bg.addColorStop(1, '#2a2a4e');
-  }
+  bg.addColorStop(0, c.dark);
+  bg.addColorStop(0.5, '#1a1a2e');
+  bg.addColorStop(1, c.dark);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, size, size);
 
-  // 装饰光环
+  // 装饰点
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = Math.random() * 1.4;
+    ctx.fillStyle = `rgba(255,255,255,${0.1 + Math.random() * 0.4})`;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   const cx = size / 2;
-  const cy = size * 0.55;
-  const ringR = size * 0.4;
-  const ringGrad = ctx.createRadialGradient(cx, cy, ringR * 0.6, cx, cy, ringR);
-  ringGrad.addColorStop(0, colors.glow + '88');
-  ringGrad.addColorStop(1, colors.glow + '00');
-  ctx.fillStyle = ringGrad;
+  const cy = size * 0.5;
+
+  // 元素光环多层
+  for (let i = 0; i < 3; i++) {
+    const ringR = size * 0.46 - i * 12;
+    const ringGrad = ctx.createRadialGradient(cx, cy, ringR * 0.5, cx, cy, ringR);
+    ringGrad.addColorStop(0, c.glow + Math.round(0.5 * 255).toString(16).padStart(2, '0'));
+    ringGrad.addColorStop(1, c.glow + '00');
+    ctx.fillStyle = ringGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 阵营徽记 (顶部)
+  ctx.save();
+  ctx.font = `bold ${size * 0.16}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = c.glow;
+  ctx.shadowColor = c.glow;
+  ctx.shadowBlur = 12;
+  ctx.fillText(FACTION_GLYPH[hero.faction], cx, cy - size * 0.42);
+  ctx.restore();
+
+  // 星座圈（稀有度）
+  ctx.save();
+  ctx.translate(cx, cy);
+  const starCount = hero.rarity === 'MRC' ? 8 : hero.rarity === 'LR' ? 6 : hero.rarity === 'UR' ? 5 : 4;
+  ctx.strokeStyle = f.border + '88';
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.arc(0, 0, size * 0.42, 0, Math.PI * 2);
+  ctx.stroke();
+  for (let i = 0; i < starCount; i++) {
+    const a = (i / starCount) * Math.PI * 2 - Math.PI / 2;
+    const x = Math.cos(a) * size * 0.42;
+    const y = Math.sin(a) * size * 0.42;
+    ctx.fillStyle = f.glow;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 
-  // 阵营装饰
-  FACTION_DECOR[hero.faction](ctx, cx, cy, size);
-
-  // 角色身体（Q 版头大身小）
+  // 角色身体
   const headR = size * 0.22;
   const headY = cy - size * 0.05;
+
+  // 身体轮廓
+  ctx.fillStyle = c.main;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + size * 0.18, headR * 1.4, headR * 1.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // 身体高光
+  const bodyGrad = ctx.createLinearGradient(cx - headR, cy + size * 0.1, cx + headR, cy + size * 0.3);
+  bodyGrad.addColorStop(0, c.light);
+  bodyGrad.addColorStop(0.5, c.main);
+  bodyGrad.addColorStop(1, c.dark);
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + size * 0.18, headR * 1.4, headR * 1.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 头
   ctx.fillStyle = '#fde7d3';
   ctx.beginPath();
   ctx.arc(cx, headY, headR, 0, Math.PI * 2);
   ctx.fill();
+  // 头阴影
+  ctx.strokeStyle = '#d4a890';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
   // 头发
-  ctx.fillStyle = colors.main;
+  ctx.fillStyle = c.main;
   ctx.beginPath();
   ctx.arc(cx, headY - headR * 0.3, headR * 1.05, Math.PI, 0);
   ctx.fill();
   ctx.fillRect(cx - headR, headY - headR * 0.3, headR * 2, headR * 0.3);
+  // 头发高光
+  ctx.fillStyle = c.light;
+  ctx.beginPath();
+  ctx.arc(cx - headR * 0.4, headY - headR * 0.15, headR * 0.3, 0, Math.PI);
+  ctx.fill();
 
   // 眼睛
   ctx.fillStyle = '#0f172a';
@@ -183,33 +161,74 @@ export function drawHeroPortrait(canvas: HTMLCanvasElement, hero: HeroBase) {
   ctx.arc(cx - headR * 0.35, headY, headR * 0.13, 0, Math.PI * 2);
   ctx.arc(cx + headR * 0.35, headY, headR * 0.13, 0, Math.PI * 2);
   ctx.fill();
-  // 高光
+  // 眼睛高光
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.arc(cx - headR * 0.3, headY - headR * 0.05, headR * 0.04, 0, Math.PI * 2);
-  ctx.arc(cx + headR * 0.4, headY - headR * 0.05, headR * 0.04, 0, Math.PI * 2);
+  ctx.arc(cx - headR * 0.3, headY - headR * 0.05, headR * 0.05, 0, Math.PI * 2);
+  ctx.arc(cx + headR * 0.4, headY - headR * 0.05, headR * 0.05, 0, Math.PI * 2);
+  ctx.fill();
+  // 腮红
+  ctx.fillStyle = '#fda4afaa';
+  ctx.beginPath();
+  ctx.arc(cx - headR * 0.55, headY + headR * 0.15, headR * 0.15, 0, Math.PI * 2);
+  ctx.arc(cx + headR * 0.55, headY + headR * 0.15, headR * 0.15, 0, Math.PI * 2);
   ctx.fill();
   // 嘴
   ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.arc(cx, headY + headR * 0.2, headR * 0.2, 0, Math.PI);
+  ctx.arc(cx, headY + headR * 0.2, headR * 0.2, 0.2, Math.PI - 0.2);
   ctx.stroke();
 
-  // 职业身体
-  CLASS_SHAPE[hero.class](ctx, cx, cy, size, colors.main);
-
-  // 阵营徽记
-  ctx.fillStyle = colors.glow;
-  ctx.font = `bold ${size * 0.18}px sans-serif`;
+  // 职业图标 (胸章)
+  ctx.font = `${size * 0.12}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(hero.rarity, cx, size - size * 0.08);
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath();
+  ctx.arc(cx, cy + size * 0.2, size * 0.07, 0, Math.PI * 2);
+  ctx.fillStyle = '#fde68a';
+  ctx.fill();
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillText(CLASS_GLYPH[hero.class], cx, cy + size * 0.2);
 
-  // 边框
-  ctx.strokeStyle = RARITY_BORDER[hero.rarity];
+  // 稀有度标签
+  ctx.font = `bold ${size * 0.12}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = f.border;
+  ctx.shadowColor = f.glow;
+  ctx.shadowBlur = 10;
+  ctx.fillText(hero.rarity, cx, size - size * 0.08);
+  ctx.shadowBlur = 0;
+
+  // 边框 (多层稀有度光环)
+  ctx.strokeStyle = f.border;
   ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, size - 4, size - 4);
+  ctx.strokeRect(3, 3, size - 6, size - 6);
+  ctx.strokeStyle = f.corner;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(8, 8, size - 16, size - 16);
+
+  // 角装饰
+  ctx.fillStyle = f.corner;
+  const corners: [number, number][] = [[0, 0], [size, 0], [0, size], [size, size]];
+  corners.forEach(([x, y], i) => {
+    ctx.save();
+    ctx.translate(x, y);
+    if (i === 1) ctx.rotate(Math.PI / 2);
+    if (i === 2) ctx.rotate(-Math.PI / 2);
+    if (i === 3) ctx.rotate(Math.PI);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(20, 0);
+    ctx.lineTo(0, 20);
+    ctx.closePath();
+    ctx.fillStyle = f.corner;
+    ctx.fill();
+    ctx.restore();
+  });
 }
 
 const cache = new Map<string, HTMLCanvasElement>();

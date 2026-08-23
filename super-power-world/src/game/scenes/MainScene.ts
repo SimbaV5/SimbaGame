@@ -1,31 +1,22 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../Game';
-import { button, tabBar, toast } from '../ui/widgets';
+import { button, tabBar } from '../ui/widgets';
 import { usePlayerStore } from '@/stores/playerStore';
 import { useHeroStore } from '@/stores/heroStore';
-import { useBattleStore } from '@/stores/battleStore';
-import { computeStats } from '@/core/formulas';
 import { HERO_MAP } from '@/data/heroes';
 import { getHeroPortrait } from '@/core/assetGen';
 
 export class MainScene extends Phaser.Scene {
-  private ui!: Phaser.GameObjects.Container;
   private headerTimer?: Phaser.Time.TimerEvent;
+  private bgStars: Phaser.GameObjects.Text[] = [];
+  private bgOrbs: Phaser.GameObjects.Arc[] = [];
+  private currencyTexts: { [k: string]: Phaser.GameObjects.Text } = {};
 
   constructor() { super('MainScene'); }
 
   create() {
     this.cameras.main.setBackgroundColor('#0e0e1e');
-    // 背景渐变
-    const g = this.add.graphics();
-    g.fillGradientStyle(0x1a1a2e, 0x1a1a2e, 0x2a1a4e, 0x2a1a4e, 1);
-    g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    // 装饰星点
-    for (let i = 0; i < 40; i++) {
-      this.add.circle(Phaser.Math.Between(0, GAME_WIDTH), Phaser.Math.Between(0, GAME_HEIGHT), Phaser.Math.Between(1, 2), 0xffffff, Phaser.Math.FloatBetween(0.2, 0.7));
-    }
-
-    this.ui = this.add.container(0, 0);
+    this.drawAnimatedBackground();
     this.drawHeader();
     this.drawHud();
     this.drawMain();
@@ -38,8 +29,53 @@ export class MainScene extends Phaser.Scene {
     ]);
     this.events.on('shutdown', () => {
       this.headerTimer?.remove();
-      this.ui.destroy();
+      this.bgStars.forEach((s) => s.destroy());
+      this.bgOrbs.forEach((o) => o.destroy());
     });
+  }
+
+  private drawAnimatedBackground() {
+    // 渐变背景
+    const g = this.add.graphics();
+    g.fillGradientStyle(0x1a1a2e, 0x1a1a2e, 0x2a1a4e, 0x2a1a4e, 1);
+    g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    // 大光球（背景氛围）
+    for (let i = 0; i < 3; i++) {
+      const orb = this.add.circle(
+        Phaser.Math.Between(100, GAME_WIDTH - 100),
+        Phaser.Math.Between(150, GAME_HEIGHT - 200),
+        Phaser.Math.Between(80, 150),
+        [0x6ad1ff, 0xc084fc, 0xfbbf24][i],
+        0.08,
+      );
+      this.bgOrbs.push(orb);
+      this.tweens.add({
+        targets: orb,
+        alpha: 0.15,
+        scaleX: 1.2, scaleY: 1.2,
+        duration: Phaser.Math.Between(4000, 7000),
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+    // 闪烁小星
+    for (let i = 0; i < 40; i++) {
+      const x = Phaser.Math.Between(0, GAME_WIDTH);
+      const y = Phaser.Math.Between(0, GAME_HEIGHT);
+      const star = this.add.text(x, y, '✦', {
+        fontSize: `${Phaser.Math.Between(8, 16)}px`,
+        color: '#ffffff',
+      }).setOrigin(0.5).setAlpha(Phaser.Math.FloatBetween(0.1, 0.4));
+      this.bgStars.push(star);
+      this.tweens.add({
+        targets: star,
+        alpha: Phaser.Math.FloatBetween(0.05, 0.4),
+        y: y - 30,
+        duration: Phaser.Math.Between(3000, 7000),
+        yoyo: true,
+        repeat: -1,
+      });
+    }
   }
 
   private drawHeader() {
@@ -54,6 +90,7 @@ export class MainScene extends Phaser.Scene {
     g.strokeRoundedRect(x, y, w, h, 18);
     // 玩家头像装饰
     const avatar = this.add.circle(x + 60, y + 50, 38, 0xc084fc);
+    this.tweens.add({ targets: avatar, scaleX: 1.05, scaleY: 1.05, duration: 1200, yoyo: true, repeat: -1 });
     this.add.text(x + 60, y + 50, player.save.nickname.slice(0, 2), { fontSize: '24px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
     this.add.text(x + 120, y + 30, `${player.save.nickname}`, { fontSize: '28px', color: '#fff', fontStyle: 'bold' });
     this.add.text(x + 120, y + 62, `Lv.${player.save.level}  ·  VIP ${player.save.vipLevel}`, { fontSize: '18px', color: '#fbbf24' });
@@ -68,12 +105,11 @@ export class MainScene extends Phaser.Scene {
     res.forEach((r, i) => {
       const cx = x + 20 + (i % 2) * (w / 2);
       const cy = y + 110 + Math.floor(i / 2) * 36;
-      this.add.text(cx, cy, `${r.name}：${r.value}`, { fontSize: '22px', color: r.color });
+      this.currencyTexts[r.name] = this.add.text(cx, cy, `${r.name}：${r.value}`, { fontSize: '22px', color: r.color });
     });
   }
 
   private drawHud() {
-    const player = usePlayerStore();
     const hero = useHeroStore();
     const slot = hero.heroes[0];
     if (!slot) return;
@@ -82,7 +118,23 @@ export class MainScene extends Phaser.Scene {
     if (!this.textures.exists(key)) this.textures.addCanvas(key, portrait);
     const sprite = this.add.image(GAME_WIDTH - 100, 100, key);
     sprite.setDisplaySize(140, 140);
-    void player;
+    // 旋转入场
+    sprite.setAlpha(0);
+    sprite.setScale(0.3);
+    sprite.setRotation(Math.PI);
+    this.tweens.add({
+      targets: sprite,
+      alpha: 1, scaleX: 1, scaleY: 1, rotation: 0,
+      duration: 600, ease: 'Back.easeOut',
+    });
+    // 持续旋转
+    this.tweens.add({
+      targets: sprite,
+      rotation: 0.05, duration: 2000, yoyo: true, repeat: -1,
+    });
+    // 装饰圆环
+    const ring = this.add.circle(GAME_WIDTH - 100, 100, 75, 0xfbbf24, 0).setStrokeStyle(2, 0xfbbf24, 0.6);
+    this.tweens.add({ targets: ring, scaleX: 1.1, scaleY: 1.1, alpha: 0.3, duration: 1500, yoyo: true, repeat: -1 });
   }
 
   private drawMain() {
@@ -101,34 +153,38 @@ export class MainScene extends Phaser.Scene {
     items.forEach((it, i) => {
       const x = 12 + (i % cols) * (cellW + 6);
       const y = mainY + Math.floor(i / cols) * (cellH + 12);
-      button(this, x, y, cellW, cellH, it.name, it.onClick, {
+      const btn = button(this, x, y, cellW, cellH, it.name, it.onClick, {
         color: it.color, fontSize: 32, radius: 16, textColor: '#fff',
+      });
+      // 入场动画
+      btn.setAlpha(0);
+      btn.setScale(0.5);
+      this.tweens.add({
+        targets: btn,
+        alpha: 1, scaleX: 1, scaleY: 1,
+        duration: 500, delay: 200 + i * 80, ease: 'Back.easeOut',
       });
       this.add.text(x + cellW / 2, y + 110, it.desc, {
         fontSize: '18px', color: '#ffffffcc',
       }).setOrigin(0.5);
+      // 持续发光
+      this.tweens.add({
+        targets: btn,
+        scaleX: 1.02, scaleY: 1.02, duration: 1200 + i * 100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+        delay: 1000 + i * 80,
+      });
     });
   }
 
   private openMore() {
-    toast(this, '请使用下方 Tab 切换');
+    // 不做处理，更多入口在 Tab 中
   }
 
   update() {
-    // 头部刷新
     const player = usePlayerStore();
-    this.children.list
-      .filter((c: any) => c.type === 'Text' && c.text.startsWith('金币：'))
-      .forEach((t: any) => t.setText(`金币：${player.save.gold}`));
-    this.children.list
-      .filter((c: any) => c.type === 'Text' && c.text.startsWith('钻石：'))
-      .forEach((t: any) => t.setText(`钻石：${player.save.gem}`));
-    this.children.list
-      .filter((c: any) => c.type === 'Text' && c.text.startsWith('体力：'))
-      .forEach((t: any) => t.setText(`体力：${player.save.stamina}`));
-    this.children.list
-      .filter((c: any) => c.type === 'Text' && c.text.startsWith('英魂：'))
-      .forEach((t: any) => t.setText(`英魂：${player.save.soul}`));
-    void computeStats;
+    if (this.currencyTexts['金币']) this.currencyTexts['金币'].setText(`金币：${player.save.gold}`);
+    if (this.currencyTexts['钻石']) this.currencyTexts['钻石'].setText(`钻石：${player.save.gem}`);
+    if (this.currencyTexts['体力']) this.currencyTexts['体力'].setText(`体力：${player.save.stamina}`);
+    if (this.currencyTexts['英魂']) this.currencyTexts['英魂'].setText(`英魂：${player.save.soul}`);
   }
 }

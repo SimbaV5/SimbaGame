@@ -9,18 +9,18 @@ import { computeStats } from '@/core/formulas';
 
 export class StageScene extends Phaser.Scene {
   private currentChapter = 1;
-  private scrollY = 0;
+  private bgStars: Phaser.GameObjects.Text[] = [];
 
   constructor() { super('StageScene'); }
 
   create() {
     this.cameras.main.setBackgroundColor('#0e0e1e');
-    backBar(this, '关卡选择', () => this.scene.start('MainScene'));
+    this.drawAnimatedBackground();
+    backBar(this, '⚔ 关卡选择', () => this.scene.start('MainScene'));
 
     this.drawChapterTabs();
     this.drawStages();
 
-    // 立即战斗按钮
     const player = usePlayerStore();
     const battle = useBattleStore();
     button(this, GAME_WIDTH - 220, GAME_HEIGHT - 130, 200, 80, '前往战斗', () => {
@@ -30,6 +30,26 @@ export class StageScene extends Phaser.Scene {
     }, { color: 0x10b981, fontSize: 24 });
 
     button(this, 20, GAME_HEIGHT - 130, 200, 80, '挂机收益', () => this.claimIdle(), { color: 0x6ad1ff, fontSize: 24 });
+  }
+
+  private drawAnimatedBackground() {
+    for (let i = 0; i < 18; i++) {
+      const x = Phaser.Math.Between(0, GAME_WIDTH);
+      const y = Phaser.Math.Between(0, GAME_HEIGHT);
+      const star = this.add.text(x, y, '✦', {
+        fontSize: `${Phaser.Math.Between(8, 14)}px`,
+        color: '#10b981',
+      }).setOrigin(0.5).setAlpha(0.15);
+      this.bgStars.push(star);
+      this.tweens.add({
+        targets: star,
+        alpha: 0.3,
+        y: y - 30,
+        duration: Phaser.Math.Between(4000, 8000),
+        yoyo: true,
+        repeat: -1,
+      });
+    }
   }
 
   private drawChapterTabs() {
@@ -52,6 +72,13 @@ export class StageScene extends Phaser.Scene {
         this.currentChapter = c;
         this.scene.restart();
       });
+      // 选中发光
+      if (isActive) {
+        this.tweens.add({
+          targets: bg,
+          alpha: 0.8, duration: 800, yoyo: true, repeat: -1,
+        });
+      }
     });
   }
 
@@ -72,15 +99,20 @@ export class StageScene extends Phaser.Scene {
       this.add.text(x + 12, y + 12, `第${s.level % 6 || 6}关`, { fontSize: '22px', color: '#fbbf24', fontStyle: 'bold' });
       this.add.text(x + 12, y + 44, `推荐战力 ${s.recommendedPower}`, { fontSize: '16px', color: '#9ca3af' });
       if (cleared) this.add.text(x + cellW - 12, y + 12, '✓', { fontSize: '24px', color: '#10b981' }).setOrigin(1, 0);
-      if (s.bossId) this.add.text(x + cellW - 12, y + cellH - 12, 'BOSS', { fontSize: '16px', color: '#ef4444' }).setOrigin(1, 1);
-      const b = button(this, x + 16, y + cellH - 50, cellW - 32, 38, cleared ? '重打' : '挑战', () => this.startStage(s.id), { fontSize: 18 });
+      if (s.bossId) {
+        const bossLabel = this.add.text(x + cellW - 12, y + cellH - 12, '⚠ BOSS', { fontSize: '16px', color: '#ef4444', fontStyle: 'bold' }).setOrigin(1, 1);
+        this.tweens.add({ targets: bossLabel, alpha: 0.5, duration: 600, yoyo: true, repeat: -1 });
+      }
+      button(this, x + 16, y + cellH - 50, cellW - 32, 38, cleared ? '重打' : '挑战', () => this.startStage(s.id), { fontSize: 18 });
+      // 入场动画
+      const cell = this.add.rectangle(x, y, 0, cellH, 0x00000000);
+      void cell;
     });
   }
 
   private startStage(id: number) {
     const player = usePlayerStore();
     const battle = useBattleStore();
-    const hero = useHeroStore();
     const team = player.save.formation.slots.filter((u) => u !== null);
     if (team.length === 0) {
       toast(this, '请先在英雄界面配置阵容');
@@ -91,7 +123,7 @@ export class StageScene extends Phaser.Scene {
     if (!stage) return;
     battle.init(stage, player.save.formation.slots);
     void computeStats;
-    void hero;
+    void useHeroStore;
     this.scene.start('BattleScene');
   }
 
@@ -106,5 +138,9 @@ export class StageScene extends Phaser.Scene {
     player.addCurrency('gold', gold);
     player.addCurrency('exp', exp);
     toast(this, `领取挂机收益 金币+${gold} 经验+${exp}`);
+  }
+
+  shutdown() {
+    this.bgStars.forEach((s) => s.destroy());
   }
 }

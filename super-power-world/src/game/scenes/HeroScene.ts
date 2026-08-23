@@ -10,15 +10,37 @@ import { getHeroPortrait } from '@/core/assetGen';
 export class HeroScene extends Phaser.Scene {
   private selectedUid: string | null = null;
   private mode: 'list' | 'detail' | 'formation' = 'list';
+  private bgStars: Phaser.GameObjects.Text[] = [];
 
   constructor() { super('HeroScene'); }
 
   create() {
     this.cameras.main.setBackgroundColor('#0e0e1e');
-    backBar(this, '英雄管理', () => this.scene.start('MainScene'));
+    this.drawAnimatedBackground();
+    backBar(this, '⚔ 英雄管理', () => this.scene.start('MainScene'));
     button(this, 20, 90, 200, 50, '编队', () => this.toggleMode('formation'), { fontSize: 20 });
     button(this, 240, 90, 200, 50, '英雄列表', () => this.toggleMode('list'), { fontSize: 20 });
     this.refresh();
+  }
+
+  private drawAnimatedBackground() {
+    for (let i = 0; i < 15; i++) {
+      const x = Phaser.Math.Between(0, GAME_WIDTH);
+      const y = Phaser.Math.Between(0, GAME_HEIGHT);
+      const star = this.add.text(x, y, '✦', {
+        fontSize: `${Phaser.Math.Between(8, 14)}px`,
+        color: '#6ad1ff',
+      }).setOrigin(0.5).setAlpha(0.15);
+      this.bgStars.push(star);
+      this.tweens.add({
+        targets: star,
+        alpha: 0.3,
+        y: y - 30,
+        duration: Phaser.Math.Between(4000, 8000),
+        yoyo: true,
+        repeat: -1,
+      });
+    }
   }
 
   private toggleMode(m: 'list' | 'formation') {
@@ -28,7 +50,7 @@ export class HeroScene extends Phaser.Scene {
 
   private refresh() {
     this.children.removeAll();
-    backBar(this, '英雄管理', () => this.scene.start('MainScene'));
+    backBar(this, '⚔ 英雄管理', () => this.scene.start('MainScene'));
     button(this, 20, 90, 200, 50, '编队', () => this.toggleMode('formation'), { fontSize: 20 });
     button(this, 240, 90, 200, 50, '英雄列表', () => this.toggleMode('list'), { fontSize: 20 });
 
@@ -58,18 +80,48 @@ export class HeroScene extends Phaser.Scene {
       const portrait = getHeroPortrait(base);
       const key = 'hero_portrait_' + h.uid;
       if (!this.textures.exists(key)) this.textures.addCanvas(key, portrait);
-      const img = this.add.image(x + cellW / 2, y + 70, key).setDisplaySize(cellW - 8, 100);
       const g = this.add.graphics();
       g.fillStyle(0x23234a, 1);
       g.fillRoundedRect(x, y, cellW, cellH, 12);
-      img.setDepth(2);
+      const img = this.add.image(x + cellW / 2, y + 70, key).setDisplaySize(cellW - 8, 100);
+      // 入场动画
+      img.setAlpha(0);
+      img.setScale(0.5);
+      this.tweens.add({
+        targets: img,
+        alpha: 1, scaleX: 1, scaleY: 1,
+        duration: 400, delay: i * 30, ease: 'Back.easeOut',
+      });
+      // 持续呼吸
+      this.tweens.add({
+        targets: img,
+        scaleY: 1.05,
+        duration: 1500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+        delay: 400 + i * 30,
+      });
       this.add.text(x + cellW / 2, y + 130, base.name, { fontSize: '18px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
-      this.add.text(x + 8, y + 152, `${base.rarity} Lv${h.level}`, { fontSize: '14px', color: '#fbbf24' });
+      const starsText = '★'.repeat(h.star);
+      this.add.text(x + cellW / 2, y + 152, starsText, { fontSize: '14px', color: '#fbbf24' }).setOrigin(0.5);
+      this.add.text(x + 8, y + 152, `${base.rarity} Lv${h.level}`, { fontSize: '12px', color: '#fbbf24' });
       g.setInteractive(new Phaser.Geom.Rectangle(x, y, cellW, cellH), Phaser.Geom.Rectangle.Contains);
       g.on('pointerdown', () => {
         this.selectedUid = h.uid;
         this.refresh();
       });
+      // 选中上抬
+      if (this.selectedUid === h.uid) {
+        g.lineStyle(3, 0xfbbf24, 1);
+        g.strokeRoundedRect(x - 2, y - 2, cellW + 4, cellH + 4, 14);
+        this.tweens.add({
+          targets: [img],
+          y: img.y - 10,
+          duration: 300,
+          ease: 'Sine.easeOut',
+        });
+      }
     });
   }
 
@@ -93,13 +145,20 @@ export class HeroScene extends Phaser.Scene {
           const portrait = getHeroPortrait(base);
           const key = 'form_' + uid;
           if (!this.textures.exists(key)) this.textures.addCanvas(key, portrait);
-          this.add.image(x + cellW / 2, y + 80, key).setDisplaySize(cellW - 20, 100);
+          const img = this.add.image(x + cellW / 2, y + 80, key).setDisplaySize(cellW - 20, 100);
+          img.setAlpha(0);
+          img.setScale(0.5);
+          this.tweens.add({
+            targets: img,
+            alpha: 1, scaleX: 1, scaleY: 1,
+            duration: 400, delay: i * 60, ease: 'Back.easeOut',
+          });
           this.add.text(x + cellW / 2, y + 145, base.name, { fontSize: '18px', color: '#fff' }).setOrigin(0.5);
+          this.add.text(x + cellW / 2, y + 168, `${base.rarity} Lv${inst.level}`, { fontSize: '14px', color: '#fbbf24' }).setOrigin(0.5);
         }
       } else {
-        this.add.text(x + cellW / 2, y + cellH / 2, '空位', { fontSize: '22px', color: '#4a4a8a' }).setOrigin(0.5);
+        this.add.text(x + cellW / 2, y + cellH / 2, '+ 空位', { fontSize: '22px', color: '#4a4a8a' }).setOrigin(0.5);
       }
-      // 点击切换
       const slotIdx = i;
       const bg = this.add.rectangle(x + cellW / 2, y + cellH / 2, cellW, cellH, 0x00000000).setInteractive();
       bg.on('pointerdown', () => {
@@ -123,7 +182,19 @@ export class HeroScene extends Phaser.Scene {
     const portrait = getHeroPortrait(base);
     const key = 'detail_' + inst.uid;
     if (!this.textures.exists(key)) this.textures.addCanvas(key, portrait);
-    this.add.image(x + 100, y + 100, key).setDisplaySize(160, 160);
+    const img = this.add.image(x + 100, y + 100, key).setDisplaySize(160, 160);
+    img.setAlpha(0);
+    img.setScale(0.5);
+    this.tweens.add({
+      targets: img,
+      alpha: 1, scaleX: 1, scaleY: 1,
+      duration: 500, ease: 'Back.easeOut',
+    });
+    // 持续旋转
+    this.tweens.add({
+      targets: img,
+      rotation: 0.05, duration: 3000, yoyo: true, repeat: -1,
+    });
 
     this.add.text(x + 200, y + 30, base.name, { fontSize: '28px', color: '#fbbf24', fontStyle: 'bold' });
     this.add.text(x + 200, y + 66, `${base.rarity}  ${cn(base.class)}  ${cn(base.element)}  ${cn(base.faction)}`, { fontSize: '16px', color: '#9ca3af' });
@@ -158,6 +229,10 @@ export class HeroScene extends Phaser.Scene {
     void base;
     void starUpCost;
     void breakthroughCost;
+  }
+
+  shutdown() {
+    this.bgStars.forEach((s) => s.destroy());
   }
 }
 
