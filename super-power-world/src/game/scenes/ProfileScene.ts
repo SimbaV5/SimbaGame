@@ -74,7 +74,7 @@ export class ProfileScene extends Phaser.Scene {
       this.add.text(x + w / 2, y + 25, t.name, {
         fontSize: '18px', color: isActive ? '#1a1a2e' : '#fff', fontStyle: 'bold',
       }).setOrigin(0.5);
-      const bg = this.add.rectangle(x + w / 2, y + 25, w - 8, 50, 0x00000000).setInteractive();
+      const bg = this.add.rectangle(x + w / 2, y + 25, w - 8, 50, 0xffffff, 0).setInteractive();
       bg.on('pointerdown', () => { this.tab = t.id; this.scene.restart(); });
     });
   }

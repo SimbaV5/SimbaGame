@@ -29,12 +29,28 @@ export class BootScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(DS.color.bgDeep);
 
     const g = this.add.graphics();
-    g.fillGradientStyle(
-      hex2n(DS.color.bgDeep), hex2n(DS.color.bgDeep),
-      hex2n(DS.color.bgWarm), hex2n(DS.color.magentaDeep),
-      1,
-    );
-    g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    // 全屏分层渐变替代 fillGradientStyle
+    const bootL = 10;
+    const bootTop = [0x10, 0x00, 0x20];
+    const bootMid = [0x30, 0x10, 0x50];
+    const bootBot = [0x50, 0x20, 0x60];
+    for (let i = 0; i < bootL; i++) {
+      const t = i / bootL;
+      let r, gg, b;
+      if (t < 0.5) {
+        const tt = t / 0.5;
+        r = Math.floor(bootTop[0] + (bootMid[0] - bootTop[0]) * tt);
+        gg = Math.floor(bootTop[1] + (bootMid[1] - bootTop[1]) * tt);
+        b = Math.floor(bootTop[2] + (bootMid[2] - bootTop[2]) * tt);
+      } else {
+        const tt = (t - 0.5) / 0.5;
+        r = Math.floor(bootMid[0] + (bootBot[0] - bootMid[0]) * tt);
+        gg = Math.floor(bootMid[1] + (bootBot[1] - bootMid[1]) * tt);
+        b = Math.floor(bootMid[2] + (bootBot[2] - bootMid[2]) * tt);
+      }
+      g.fillStyle((r << 16) | (gg << 8) | b, 1);
+      g.fillRect(0, (GAME_HEIGHT / bootL) * i, GAME_WIDTH, (GAME_HEIGHT / bootL) + 1);
+    }
 
     drawStarStuddedBackground(this, GAME_WIDTH, GAME_HEIGHT, 0.0008).setAlpha(0.7);
 

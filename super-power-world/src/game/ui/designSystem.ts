@@ -486,3 +486,2620 @@ export function drawFactionSymbol(
   c.add(t);
   return c;
 }
+
+// =============================================
+// 卡通明亮场景配色（超能世界截图风格）
+// =============================================
+export const CARTOON = {
+  skyTop: 0x8fd4ff,
+  skyBottom: 0xc8ecff,
+  sunGlow: 0xffe9a0,
+
+  grassLight: 0x7ac94a,
+  grassMid: 0x5aad32,
+  grassDark: 0x3f8a25,
+  grassShadow: 0x2d6a1a,
+
+  roadLight: 0xe8c788,
+  roadMid: 0xd4a958,
+  roadDark: 0xa88038,
+
+  riverLight: 0x9cdcff,
+  riverMid: 0x5cb3ea,
+  riverDeep: 0x2f7eb5,
+  riverFoam: 0xffffff,
+
+  rockLight: 0xb8b8b8,
+  rockMid: 0x8a8a8a,
+  rockDark: 0x5a5a5a,
+
+  treeLight: 0x5fb84a,
+  treeMid: 0x3a8a32,
+  treeDark: 0x206025,
+  trunk: 0x7a4a20,
+  trunkLight: 0x9a6a3a,
+
+  castleStone: 0xd8c8a8,
+  castleShade: 0xa09078,
+  castleRoof: 0x3a78b8,
+
+  bannerPink: 0xff9ec7,
+  bannerPinkDark: 0xe070a0,
+  bannerBlue: 0x3a8ad0,
+  bannerBlueDark: 0x206098,
+
+  tabBlue: 0x2a6fb5,
+  tabBlueDark: 0x1a4f85,
+  tabBlueLight: 0x4a95d5,
+
+  hexPurple: 0xb06fe0,
+  hexPurpleDark: 0x7040a8,
+  hexGold: 0xf0c040,
+};
+
+export const FACTION_COLORS: Record<string, number> = {
+  celestial: CARTOON.hexGold,
+  abyss: 0x9060e0,
+  spirit: 0x5cb3ea,
+  beast: CARTOON.grassMid,
+  human: 0xe06090,
+  mecha: 0xe07040,
+};
+
+// =============================================
+// 草地冒险地图背景（弯曲土路 + 河流 + 树木石头）
+// =============================================
+export function drawGrasslandMap(
+  scene: Phaser.Scene,
+  w: number, h: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+
+  // 天空（分层填充模拟 skyTop → skyBottom）
+  const skyL5 = 6;
+  const skyColorsTop = [0x88, 0xc8, 0xf8]; // skyTop '#88c8f8'
+  const skyColorsBot = [0xb8, 0xe0, 0xff]; // skyBottom '#b8e0ff'
+  for (let i = 0; i < skyL5; i++) {
+    const t = i / skyL5;
+    const r = Math.floor(skyColorsTop[0] + (skyColorsBot[0] - skyColorsTop[0]) * t);
+    const gg = Math.floor(skyColorsTop[1] + (skyColorsBot[1] - skyColorsTop[1]) * t);
+    const b = Math.floor(skyColorsTop[2] + (skyColorsBot[2] - skyColorsTop[2]) * t);
+    g.fillStyle((r << 16) | (gg << 8) | b, 1);
+    g.fillRect(0, (h * 0.35 / skyL5) * i, w, (h * 0.35 / skyL5) + 1);
+  }
+
+  // 太阳光晕
+  const sunX = w - 120, sunY = 90;
+  for (let i = 6; i > 0; i--) {
+    g.fillStyle(CARTOON.sunGlow, 0.08);
+    g.fillCircle(sunX, sunY, 30 + i * 14);
+  }
+  g.fillStyle(0xfff6c8, 1);
+  g.fillCircle(sunX, sunY, 34);
+
+  // 远山
+  for (let layer = 0; layer < 3; layer++) {
+    const baseY = h * (0.22 + layer * 0.05);
+    const color = [0x6fb0e0, 0x5aa0c8, 0x4a8fb0][layer];
+    g.fillStyle(color, 0.8 - layer * 0.2);
+    g.beginPath();
+    g.moveTo(0, baseY + 60);
+    const peaks = 7 + layer;
+    for (let i = 0; i <= peaks; i++) {
+      const px = (w / peaks) * i;
+      const py = baseY - Math.sin(i * 1.3 + layer) * (30 - layer * 6) - (i % 2) * 18;
+      g.lineTo(px, py);
+    }
+    g.lineTo(w, baseY + 60);
+    g.closePath();
+    g.fillPath();
+  }
+
+  // 草地（下半部分，分层填充 grassLight → grassMid → grassDark）
+  const grassY = h * 0.3;
+  const grassH = h * 0.7;
+  const grassL5 = 7;
+  for (let i = 0; i < grassL5; i++) {
+    const t = i / grassL5;
+    // grassLight '#a8e870', grassMid '#68c048', grassDark '#3a8830'
+    //   light (t=0) → mid (t=0.5) → dark (t=1) 分段插值
+    let r, gg, b;
+    if (t < 0.5) {
+      const tt = t / 0.5;
+      r = Math.floor(0xa8 + (0x68 - 0xa8) * tt);
+      gg = Math.floor(0xe8 + (0xc0 - 0xe8) * tt);
+      b = Math.floor(0x70 + (0x48 - 0x70) * tt);
+    } else {
+      const tt = (t - 0.5) / 0.5;
+      r = Math.floor(0x68 + (0x3a - 0x68) * tt);
+      gg = Math.floor(0xc0 + (0x88 - 0xc0) * tt);
+      b = Math.floor(0x48 + (0x30 - 0x48) * tt);
+    }
+    g.fillStyle((r << 16) | (gg << 8) | b, 1);
+    g.fillRect(0, grassY + (grassH / grassL5) * i, w, (grassH / grassL5) + 1);
+  }
+
+  // 草地纹理（深浅斑块）
+  for (let i = 0; i < 40; i++) {
+    const px = Math.random() * w;
+    const py = h * 0.32 + Math.random() * h * 0.66;
+    const pr = 20 + Math.random() * 60;
+    g.fillStyle(Math.random() > 0.5 ? CARTOON.grassMid : CARTOON.grassLight, 0.35);
+    g.fillEllipse(px, py, pr, pr * 0.6);
+  }
+
+  return g;
+}
+
+// 绘制弯曲的道路路径（返回路径点数组用于放置关卡）
+export function drawWindingRoad(
+  scene: Phaser.Scene,
+  w: number, h: number,
+): { points: { x: number; y: number }[]; g: Phaser.GameObjects.Graphics } {
+  const g = scene.add.graphics();
+
+  // 定义路径控制点（从下往上S形）
+  const pts: { x: number; y: number }[] = [];
+  const startY = h - 180;
+  const nodes = [
+    { x: w * 0.5, y: startY },
+    { x: w * 0.3, y: startY - 120 },
+    { x: w * 0.25, y: startY - 240 },
+    { x: w * 0.55, y: startY - 360 },
+    { x: w * 0.7, y: startY - 480 },
+    { x: w * 0.45, y: startY - 600 },
+    { x: w * 0.3, y: startY - 720 },
+    { x: w * 0.55, y: startY - 840 },
+  ];
+
+  // 生成平滑曲线路径
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const a = nodes[i], b = nodes[i + 1];
+    for (let t = 0; t <= 1; t += 0.08) {
+      const x = Phaser.Math.Linear(a.x, b.x, t) + (Math.random() - 0.5) * 2;
+      const y = Phaser.Math.Linear(a.y, b.y, t);
+      pts.push({ x, y });
+    }
+  }
+  pts.push(nodes[nodes.length - 1]);
+
+  // 画道路阴影
+  g.lineStyle(68, CARTOON.roadDark, 0.4);
+  g.beginPath();
+  g.moveTo(pts[0].x, pts[0].y + 4);
+  pts.forEach(p => g.lineTo(p.x, p.y + 4));
+  g.strokePath();
+
+  // 画道路主体
+  g.lineStyle(60, CARTOON.roadMid, 1);
+  g.beginPath();
+  g.moveTo(pts[0].x, pts[0].y);
+  pts.forEach(p => g.lineTo(p.x, p.y));
+  g.strokePath();
+
+  // 画道路亮色中线
+  g.lineStyle(50, CARTOON.roadLight, 1);
+  g.beginPath();
+  g.moveTo(pts[0].x, pts[0].y);
+  pts.forEach(p => g.lineTo(p.x, p.y));
+  g.strokePath();
+
+  // 小圆点（路径标记）
+  const markerPts: { x: number; y: number }[] = [];
+  for (let i = 2; i < pts.length - 1; i += 3) {
+    if (Math.random() > 0.2) {
+      markerPts.push(pts[i]);
+      g.fillStyle(CARTOON.riverLight, 0.7);
+      g.fillCircle(pts[i].x, pts[i].y, 7);
+      g.fillStyle(0xffffff, 0.8);
+      g.fillCircle(pts[i].x - 1.5, pts[i].y - 1.5, 3);
+    }
+  }
+
+  return { points: markerPts.concat(nodes), g };
+}
+
+// 画河流
+export function drawRiver(
+  scene: Phaser.Scene,
+  x1: number, y1: number, x2: number, y2: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+  const midX = (x1 + x2) / 2 + 60;
+  const midY = (y1 + y2) / 2;
+
+  // 生成二次贝塞尔曲线上的点（Phaser Graphics 没有 quadraticCurveTo，用多点 lineTo 模拟）
+  const bezier = (t: number) => {
+    const u = 1 - t;
+    return {
+      x: u * u * x1 + 2 * u * t * midX + t * t * x2,
+      y: u * u * y1 + 2 * u * t * midY + t * t * y2,
+    };
+  };
+  const steps = 40;
+  const pts: { x: number; y: number }[] = [];
+  for (let i = 0; i <= steps; i++) {
+    pts.push(bezier(i / steps));
+  }
+
+  // 河流主体
+  g.lineStyle(70, CARTOON.riverDeep, 0.9);
+  g.beginPath();
+  g.moveTo(pts[0].x, pts[0].y);
+  pts.forEach(p => g.lineTo(p.x, p.y));
+  g.strokePath();
+
+  g.lineStyle(56, CARTOON.riverMid, 1);
+  g.beginPath();
+  g.moveTo(pts[0].x, pts[0].y);
+  pts.forEach(p => g.lineTo(p.x, p.y));
+  g.strokePath();
+
+  g.lineStyle(40, CARTOON.riverLight, 0.85);
+  g.beginPath();
+  g.moveTo(pts[0].x, pts[0].y);
+  pts.forEach(p => g.lineTo(p.x, p.y));
+  g.strokePath();
+
+  // 水波高光
+  for (let i = 0; i < 8; i++) {
+    const p = bezier(i / 8);
+    g.fillStyle(CARTOON.riverFoam, 0.5);
+    g.fillEllipse(p.x - 8, p.y, 16, 4);
+  }
+
+  return g;
+}
+
+// 画针叶树
+export function drawPineTree(
+  scene: Phaser.Scene,
+  x: number, y: number, scale = 1,
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const g = scene.add.graphics();
+
+  // 阴影
+  g.fillStyle(0x000000, 0.22);
+  g.fillEllipse(4 * scale, 4 * scale, 36 * scale, 10 * scale);
+
+  // 树干
+  g.fillStyle(CARTOON.trunk, 1);
+  g.fillRect(-6 * scale, -10 * scale, 12 * scale, 28 * scale);
+  g.fillStyle(CARTOON.trunkLight, 1);
+  g.fillRect(-6 * scale, -10 * scale, 4 * scale, 28 * scale);
+
+  // 三层树冠
+  const layers = [
+    { w: 50, h: 44, y: -80, c1: CARTOON.treeLight, c2: CARTOON.treeMid },
+    { w: 42, h: 40, y: -52, c1: CARTOON.treeLight, c2: CARTOON.treeMid },
+    { w: 34, h: 36, y: -26, c1: CARTOON.treeMid, c2: CARTOON.treeDark },
+  ];
+  layers.forEach((L, idx) => {
+    g.fillStyle(L.c2, 1);
+    g.beginPath();
+    g.moveTo(0, (L.y - L.h) * scale);
+    g.lineTo((L.w / 2) * scale, L.y * scale);
+    g.lineTo((-L.w / 2) * scale, L.y * scale);
+    g.closePath();
+    g.fillPath();
+
+    g.fillStyle(L.c1, 1);
+    g.beginPath();
+    g.moveTo(-4 * scale, (L.y - L.h + 6) * scale);
+    g.lineTo((L.w / 2 - 8) * scale, (L.y - 4) * scale);
+    g.lineTo((-L.w / 2 + 12) * scale, (L.y - 4) * scale);
+    g.closePath();
+    g.fillPath();
+  });
+
+  c.add(g);
+  return c;
+}
+
+// 画圆叶树
+export function drawRoundTree(
+  scene: Phaser.Scene,
+  x: number, y: number, scale = 1,
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const g = scene.add.graphics();
+
+  g.fillStyle(0x000000, 0.2);
+  g.fillEllipse(4 * scale, 4 * scale, 44 * scale, 12 * scale);
+
+  g.fillStyle(CARTOON.trunk, 1);
+  g.fillRect(-7 * scale, -6 * scale, 14 * scale, 30 * scale);
+
+  // 多个圆形组成树冠
+  const leafs = [
+    { x: 0, y: -60, r: 36, c: CARTOON.treeDark },
+    { x: -26, y: -46, r: 28, c: CARTOON.treeMid },
+    { x: 26, y: -42, r: 30, c: CARTOON.treeMid },
+    { x: 0, y: -30, r: 32, c: CARTOON.treeLight },
+    { x: -14, y: -64, r: 20, c: CARTOON.treeLight },
+  ];
+  leafs.forEach(L => {
+    g.fillStyle(L.c, 1);
+    g.fillCircle(L.x * scale, L.y * scale, L.r * scale);
+  });
+
+  c.add(g);
+  return c;
+}
+
+// 画石头
+export function drawRock(
+  scene: Phaser.Scene,
+  x: number, y: number, scale = 1,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+  g.fillStyle(0x000000, 0.22);
+  g.fillEllipse(x + 3 * scale, y + 3 * scale, 40 * scale, 12 * scale);
+
+  g.fillStyle(CARTOON.rockDark, 1);
+  g.beginPath();
+  g.moveTo(x - 28 * scale, y);
+  g.lineTo(x - 22 * scale, y - 20 * scale);
+  g.lineTo(x - 4 * scale, y - 28 * scale);
+  g.lineTo(x + 18 * scale, y - 22 * scale);
+  g.lineTo(x + 28 * scale, y - 6 * scale);
+  g.lineTo(x + 24 * scale, y + 6 * scale);
+  g.lineTo(x - 20 * scale, y + 8 * scale);
+  g.closePath();
+  g.fillPath();
+
+  g.fillStyle(CARTOON.rockMid, 1);
+  g.beginPath();
+  g.moveTo(x - 22 * scale, y - 4 * scale);
+  g.lineTo(x - 18 * scale, y - 18 * scale);
+  g.lineTo(x - 2 * scale, y - 24 * scale);
+  g.lineTo(x + 14 * scale, y - 18 * scale);
+  g.lineTo(x + 22 * scale, y - 4 * scale);
+  g.lineTo(x + 16 * scale, y);
+  g.lineTo(x - 14 * scale, y + 2 * scale);
+  g.closePath();
+  g.fillPath();
+
+  g.fillStyle(CARTOON.rockLight, 0.8);
+  g.beginPath();
+  g.moveTo(x - 14 * scale, y - 14 * scale);
+  g.lineTo(x - 6 * scale, y - 20 * scale);
+  g.lineTo(x + 4 * scale, y - 16 * scale);
+  g.lineTo(x - 2 * scale, y - 8 * scale);
+  g.closePath();
+  g.fillPath();
+  return g;
+}
+
+// 画木桥
+export function drawWoodBridge(
+  scene: Phaser.Scene,
+  x: number, y: number, w: number,
+): Phaser.GameObjects.Container {
+  const cont = scene.add.container(x, y);
+  const g = scene.add.graphics();
+  const h = 46; // 桥总高
+  const plankAngle = -0.22; // 桥面倾斜角度（右上斜）
+  const halfW = w / 2;
+
+  // 辅助：点旋转
+  const rot = (px: number, py: number): [number, number] => {
+    const cos = Math.cos(plankAngle), sin = Math.sin(plankAngle);
+    return [px * cos - py * sin, px * sin + py * cos];
+  };
+  // 辅助：画旋转后的矩形
+  const fillRectRot = (rx: number, ry: number, rw: number, rh: number) => {
+    const [x1, y1] = rot(rx, ry);
+    const [x2, y2] = rot(rx + rw, ry);
+    const [x3, y3] = rot(rx + rw, ry + rh);
+    const [x4, y4] = rot(rx, ry + rh);
+    g.beginPath();
+    g.moveTo(x1, y1); g.lineTo(x2, y2); g.lineTo(x3, y3); g.lineTo(x4, y4);
+    g.closePath(); g.fillPath();
+  };
+  // 辅助：画旋转后的圆角矩形（直切角近似圆角）
+  const fillRRectRot = (rx: number, ry: number, rw: number, rh: number, _radius: number) => {
+    const [x1, y1] = rot(rx + _radius, ry);
+    const [x2, y2] = rot(rx + rw - _radius, ry);
+    const [x3, y3] = rot(rx + rw, ry + _radius);
+    const [x4, y4] = rot(rx + rw, ry + rh - _radius);
+    const [x5, y5] = rot(rx + rw - _radius, ry + rh);
+    const [x6, y6] = rot(rx + _radius, ry + rh);
+    const [x7, y7] = rot(rx, ry + rh - _radius);
+    const [x8, y8] = rot(rx, ry + _radius);
+    g.beginPath();
+    g.moveTo(x1, y1); g.lineTo(x2, y2);
+    g.lineTo(x3, y3); g.lineTo(x4, y4);
+    g.lineTo(x5, y5); g.lineTo(x6, y6);
+    g.lineTo(x7, y7); g.lineTo(x8, y8);
+    g.closePath(); g.fillPath();
+  };
+  // 画线
+  const lineBetweenRot = (ax: number, ay: number, bx: number, by: number) => {
+    const [aax, aay] = rot(ax, ay);
+    const [bbx, bby] = rot(bx, by);
+    g.lineBetween(aax, aay, bbx, bby);
+  };
+
+  // ==== 两端石砌桥墩（桥台）====
+  const abutmentW = 42, abutmentH = 54;
+  // 左桥台（略低，在河左岸）
+  g.fillStyle(0x4a4a4a, 1);
+  g.fillRoundedRect(-halfW - abutmentW + 2, y + 4 - y, abutmentW, abutmentH, 6);
+  g.fillStyle(0x7a7a7a, 1);
+  g.fillRoundedRect(-halfW - abutmentW, y - y, abutmentW, abutmentH, 6);
+  for (let r = 0; r < 5; r++) {
+    for (let c = 0; c < 3; c++) {
+      const rx = -halfW - abutmentW + 4 + c * 12 + (r % 2) * 6;
+      const ry = 4 + r * 10;
+      g.fillStyle([0x8a8a8a, 0x9a9a9a, 0x7a7a7a][(r + c) % 3], 1);
+      g.fillRoundedRect(rx, ry, 10, 8, 2);
+      g.lineStyle(1, 0x5a5a5a, 0.7);
+      g.strokeRoundedRect(rx, ry, 10, 8, 2);
+    }
+  }
+  // 右桥台（略高，在河右岸）
+  g.fillStyle(0x4a4a4a, 1);
+  g.fillRoundedRect(halfW - 2, -abutmentH + 8, abutmentW, abutmentH, 6);
+  g.fillStyle(0x7a7a7a, 1);
+  g.fillRoundedRect(halfW, -abutmentH + 4, abutmentW, abutmentH, 6);
+  for (let r = 0; r < 5; r++) {
+    for (let c = 0; c < 3; c++) {
+      const rx = halfW + 4 + c * 12 + (r % 2) * 6;
+      const ry = -abutmentH + 8 + r * 10;
+      g.fillStyle([0x8a8a8a, 0x9a9a9a, 0x7a7a7a][(r + c + 1) % 3], 1);
+      g.fillRoundedRect(rx, ry, 10, 8, 2);
+      g.lineStyle(1, 0x5a5a5a, 0.7);
+      g.strokeRoundedRect(rx, ry, 10, 8, 2);
+    }
+  }
+
+  // ==== 桥面大阴影（在河面上）====
+  g.fillStyle(0x000000, 0.22);
+  // 手动旋转矩形
+  {
+    const rx = -halfW + 4, ry = -h / 2 + 4 + 10;
+    const rw = w, rh = h;
+    const [x1, y1] = rot(rx, ry);
+    const [x2, y2] = rot(rx + rw, ry);
+    const [x3, y3] = rot(rx + rw, ry + rh);
+    const [x4, y4] = rot(rx, ry + rh);
+    g.beginPath();
+    g.moveTo(x1, y1); g.lineTo(x2, y2); g.lineTo(x3, y3); g.lineTo(x4, y4);
+    g.closePath(); g.fillPath();
+  }
+
+  // ==== 桥面底层（大型厚木板结构）====
+  // 底部主梁（深色粗木）
+  g.fillStyle(0x5a3a18, 1);
+  fillRectRot(-halfW, -h / 2 + 8, w, h - 4);
+  // 中部主色
+  g.fillStyle(0x7a5028, 1);
+  fillRectRot(-halfW + 2, -h / 2 + 6, w - 4, h - 10);
+
+  // ==== 横向木板（垂直于桥长方向，逐块排）====
+  const plankCount = Math.floor(w / 14);
+  const plankW = w / plankCount;
+  for (let i = 0; i < plankCount; i++) {
+    const px = -halfW + i * plankW;
+    const tone = (i * 37) % 4;
+    const plankCol = [0x8a5a2a, 0xa06a30, 0x7a5028, 0x956532][tone];
+    const plankHi = [0xb88a50, 0xc89860, 0xa88048, 0xbe8e56][tone];
+    // 板底阴影
+    g.fillStyle(0x3a2408, 0.6);
+    fillRectRot(px + 1, -h / 2 + 9, plankW - 2, h - 8);
+    // 板主色
+    g.fillStyle(plankCol, 1);
+    fillRectRot(px + 1, -h / 2 + 7, plankW - 2, h - 12);
+    // 板高光（上半弧）
+    g.fillStyle(plankHi, 0.55);
+    fillRectRot(px + 2, -h / 2 + 8, plankW - 4, 5);
+    // 木纹纵线
+    g.lineStyle(1, 0x4a2a0a, 0.35);
+    lineBetweenRot(px + plankW / 3, -h / 2 + 9, px + plankW / 3, -h / 2 + h - 8);
+    lineBetweenRot(px + plankW * 2 / 3, -h / 2 + 9, px + plankW * 2 / 3, -h / 2 + h - 8);
+    // 板两端铁钉（小圆）
+    const nailPts = [
+      [px + 4, -h / 2 + 12],
+      [px + plankW - 5, -h / 2 + 12],
+      [px + 4, h / 2 - 8],
+      [px + plankW - 5, h / 2 - 8],
+    ];
+    nailPts.forEach(np => {
+      const [nx, ny] = rot(np[0], np[1]);
+      g.fillStyle(0x2a2a2a, 1);
+      g.fillCircle(nx, ny, 1.5);
+      g.fillStyle(0x8a8a8a, 0.9);
+      g.fillCircle(nx - 0.5, ny - 0.5, 0.8);
+    });
+  }
+
+  // ==== 两侧纵向大梁（粗木）====
+  const beamH = 12;
+  // 外侧（深色）
+  g.fillStyle(0x4a3010, 1);
+  fillRectRot(-halfW - 4, -h / 2 - beamH + 2, w + 8, beamH);
+  fillRectRot(-halfW - 4, h / 2 - 6, w + 8, beamH);
+  // 内侧主色
+  g.fillStyle(0x6a4418, 1);
+  fillRectRot(-halfW - 2, -h / 2 - beamH + 4, w + 4, beamH - 4);
+  fillRectRot(-halfW - 2, h / 2 - 4, w + 4, beamH - 4);
+  // 大梁高光
+  g.fillStyle(0x9a7438, 0.45);
+  fillRectRot(-halfW, -h / 2 - beamH + 5, w, 2);
+  fillRectRot(-halfW, h / 2 - 3, w, 2);
+  // 大梁铆钉（每侧一排）
+  for (let i = 0; i < 8; i++) {
+    const bx = -halfW + 8 + i * ((w - 16) / 7);
+    const beamTop = -h / 2 - beamH / 2 + 2;
+    const beamBot = h / 2 + beamH / 2 - 2;
+    [[bx, beamTop], [bx, beamBot]].forEach(np => {
+      const [nx, ny] = rot(np[0], np[1]);
+      g.fillStyle(0x2a2a2a, 1);
+      g.fillCircle(nx, ny, 2);
+      g.fillStyle(0x9a9a9a, 0.9);
+      g.fillCircle(nx - 0.5, ny - 0.5, 1);
+    });
+  }
+
+  // ==== 桥面顶部防滑横条（细木条，交错）====
+  g.fillStyle(0x5a3a18, 0.65);
+  for (let i = 0; i < plankCount; i += 2) {
+    fillRectRot(-halfW + i * plankW + 2, -h / 2 + 6, plankW - 4, 2);
+  }
+
+  cont.add(g);
+  cont.setScrollFactor(1);
+  return cont;
+}
+
+// 画关卡旗帜（超能世界截图风格：盾形徽章+石底座）
+export function drawStageFlag(
+  scene: Phaser.Scene,
+  x: number, y: number,
+  stageNum: number | string,
+  opts: { cleared?: boolean; locked?: boolean; current?: boolean; stars?: number } = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const g = scene.add.graphics();
+  const { cleared = false, locked = false, current = false, stars = 0 } = opts;
+
+  // 当前关卡：金色光环（多层 + 脉动准备）
+  if (current) {
+    for (let i = 6; i > 0; i--) {
+      g.fillStyle(0xfff080, 0.07 + (6 - i) * 0.025);
+      g.fillCircle(0, -10, 50 + i * 10);
+    }
+    // 闪烁的金边圈
+    g.lineStyle(4, 0xffe880, 0.85);
+    g.strokeCircle(0, -10, 58);
+    g.lineStyle(2, 0xffffff, 0.75);
+    g.strokeCircle(0, -10, 52);
+  }
+
+  // 底座阴影
+  g.fillStyle(0x000000, 0.3);
+  g.fillEllipse(3, 26, 44, 10);
+
+  // 旗杆底座（大圆形石基 - 三层）
+  g.fillStyle(0x4a4a4a, 1);
+  g.fillEllipse(0, 22, 30, 10);
+  g.fillStyle(0x7a7a7a, 1);
+  g.fillEllipse(-1, 20, 27, 8);
+  g.fillStyle(0x9a9a9a, 1);
+  g.fillEllipse(-2, 18, 24, 6);
+  g.fillStyle(0xb8b8b8, 0.85);
+  g.fillEllipse(-3, 17, 8, 2);
+  // 底座边缘铆钉
+  for (let i = 0; i < 6; i++) {
+    const ang = (i / 6) * Math.PI * 2;
+    const ex = Math.cos(ang) * 22;
+    const ey = 20 + Math.sin(ang) * 6;
+    g.fillStyle(0x6a6a6a, 1);
+    g.fillCircle(ex, ey, 2);
+    g.fillStyle(0x9a9a9a, 0.9);
+    g.fillCircle(ex - 0.5, ey - 0.5, 1);
+  }
+
+  // 旗杆（粗壮木头）
+  g.fillStyle(0x5a3a1a, 1);
+  g.fillRect(-3, -48, 6, 70);
+  g.fillStyle(0x7a5a3a, 1);
+  g.fillRect(-3, -48, 2, 70);
+  // 木纹
+  g.lineStyle(1, 0x4a2a0a, 0.4);
+  g.lineBetween(-1, -48, -1, 22);
+  // 顶帽金珠
+  g.fillStyle(0x8a6a20, 1);
+  g.fillCircle(0, -50, 5);
+  g.fillStyle(CARTOON.hexGold, 1);
+  g.fillCircle(0, -50, 4);
+  g.fillStyle(0xffffff, 0.7);
+  g.fillCircle(-1, -51, 1.5);
+
+  // 盾牌主体颜色
+  let shieldDark = 0x4a4a50, shieldMain = 0x6a6a70, shieldLight = 0x8a8a90, shieldEdge = 0x2a2a30, numColor = '#f0f0f0';
+  if (cleared) {
+    shieldDark = 0x1a5a3a; shieldMain = 0x2a8a52; shieldLight = 0x4aba72; shieldEdge = 0x0a3a20; numColor = '#ffffff';
+  } else if (current) {
+    shieldDark = 0x0e5a9a; shieldMain = 0x2a8ada; shieldLight = 0x5ac0fa; shieldEdge = 0x0a3a6a; numColor = '#ffffff';
+  } else if (!locked) {
+    shieldDark = 0x5a4a20; shieldMain = 0x8a7038; shieldLight = 0xbaa058; shieldEdge = 0x3a2a0a; numColor = '#ffffff';
+  }
+
+  // 盾牌尺寸
+  const sw = 56, sh = 72;
+  const sx = 4, sy = -50; // 左上锚点，盾牌挂在旗杆右侧
+
+  // ==== 盾形路径：上方圆+两侧微收+底部V形收尖 ====
+  const shieldPath = (gfx: Phaser.GameObjects.Graphics, px: number, py: number, pw: number, ph: number) => {
+    const topR = pw * 0.44;          // 顶部圆角半径
+    const vStartY = py + ph * 0.72;  // 底部V形起点Y
+    gfx.beginPath();
+    // 左上圆角
+    gfx.moveTo(px + topR, py);
+    // 顶边（直）
+    gfx.lineTo(px + pw - topR, py);
+    // 右上圆弧
+    for (let i = 1; i <= 8; i++) {
+      const t = i / 8;
+      const ang = -Math.PI / 2 + (Math.PI / 2) * t;
+      const cx = px + pw - topR, cy = py + topR;
+      gfx.lineTo(cx + Math.cos(ang) * topR, cy + Math.sin(ang) * topR);
+    }
+    // 右侧直边（略带内收）
+    gfx.lineTo(px + pw * 0.94, vStartY);
+    // 右下 → 底尖
+    for (let i = 1; i <= 6; i++) {
+      const t = i / 6;
+      const xr = px + pw * 0.94 - (pw * 0.44) * t;
+      const yr = vStartY + (ph - (vStartY - py)) * t;
+      gfx.lineTo(xr, yr);
+    }
+    // 底尖 → 左下
+    for (let i = 1; i <= 6; i++) {
+      const t = i / 6;
+      const xl = px + pw * 0.5 - (pw * 0.44) * (1 - t);
+      const yl = py + ph - (ph - (vStartY - py)) * (1 - t);
+      gfx.lineTo(xl, yl);
+    }
+    // 左侧直边
+    gfx.lineTo(px + pw * 0.06, vStartY);
+    // 左上圆弧
+    for (let i = 1; i <= 8; i++) {
+      const t = i / 8;
+      const ang = -Math.PI - (Math.PI / 2) * t;
+      const cx = px + topR, cy = py + topR;
+      gfx.lineTo(cx + Math.cos(ang) * topR, cy + Math.sin(ang) * topR);
+    }
+    gfx.closePath();
+  };
+
+  // 最外深描边
+  g.fillStyle(shieldEdge, 1);
+  shieldPath(g, sx - 3, sy - 3, sw + 6, sh + 6);
+  g.fillPath();
+
+  // 深色层
+  g.fillStyle(shieldDark, 1);
+  shieldPath(g, sx, sy, sw, sh);
+  g.fillPath();
+
+  // 主色层
+  g.fillStyle(shieldMain, 1);
+  shieldPath(g, sx + 3, sy + 3, sw - 6, sh - 6);
+  g.fillPath();
+
+  // 内层浅色高光
+  g.fillStyle(shieldLight, 1);
+  shieldPath(g, sx + 5, sy + 5, sw - 10, (sh - 10) * 0.45);
+  g.fillPath();
+  // 高光渐变感（再缩一点）
+  g.fillStyle(0xffffff, 0.18);
+  shieldPath(g, sx + 7, sy + 7, sw - 14, (sh - 14) * 0.25);
+  g.fillPath();
+
+  // 盾牌内描边（亮色金边或银边）
+  g.lineStyle(1.5, current ? 0xffe080 : 0xffffff, current ? 0.8 : 0.45);
+  shieldPath(g, sx + 3, sy + 3, sw - 6, sh - 6);
+  g.strokePath();
+
+  // 盾牌装饰顶部金铆钉
+  const studs = [sx + sw * 0.25, sx + sw * 0.5, sx + sw * 0.75];
+  studs.forEach(sx2 => {
+    g.fillStyle(shieldEdge, 1);
+    g.fillCircle(sx2, sy + 10, 2.5);
+    g.fillStyle(current ? CARTOON.hexGold : 0xc0c0c0, 1);
+    g.fillCircle(sx2, sy + 10, 2);
+  });
+
+  // 中心内容：锁/过关勾/数字
+  const cx = sx + sw / 2;
+  const cy = sy + sh / 2 - 2;
+  if (locked) {
+    const lock = scene.add.text(cx, cy, '🔒', { fontSize: '26px' }).setOrigin(0.5);
+    c.add(lock);
+  } else if (cleared) {
+    // 绿色勾徽章（带盾牌内圆）
+    g.fillStyle(0x3aaa5a, 0.95);
+    g.fillCircle(cx, cy, 14);
+    g.lineStyle(2, 0x9cff9c, 0.95);
+    g.strokeCircle(cx, cy, 14);
+    const check = scene.add.text(cx, cy, '✔', {
+      fontFamily: DS.font.display,
+      fontSize: '24px',
+      color: '#fffeb0',
+      fontStyle: 'bold',
+      stroke: '#0a4a20',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    c.add(check);
+  } else {
+    // 关卡号（黑色底框+描边白字）
+    g.fillStyle(0x0a0a14, 0.45);
+    g.fillCircle(cx, cy, 18);
+    const num = scene.add.text(cx, cy, String(stageNum), {
+      fontFamily: DS.font.display,
+      fontSize: current ? '36px' : '32px',
+      color: numColor,
+      fontStyle: 'bold',
+      stroke: current ? '#0a3a6a' : '#000000',
+      strokeThickness: current ? 4 : 3,
+    }).setOrigin(0.5);
+    c.add(num);
+  }
+
+  // 星级（下方靠近尖端）
+  if (!locked && stars > 0) {
+    const starY = sy + sh - 12;
+    for (let i = 0; i < 3; i++) {
+      const filled = i < stars;
+      const stX = sx + sw * 0.28 + i * sw * 0.22;
+      scene.add.text(stX, starY, '★', {
+        fontFamily: DS.font.display,
+        fontSize: '16px',
+        color: filled ? '#ffd76a' : '#4a4a50',
+        fontStyle: 'bold',
+        stroke: filled ? '#4a2a00' : '#000000',
+        strokeThickness: 1,
+      }).setOrigin(0.5);
+    }
+  }
+
+  // 顶部皇冠/面具装饰（BOSS关 / 解锁关）
+  if (typeof stageNum === 'number' && stageNum % 5 === 0 && !locked) {
+    // 顶冠
+    const cy2 = sy - 10;
+    g.fillStyle(0x8a6a20, 1);
+    g.fillRoundedRect(cx - 16, cy2 - 14, 32, 20, 4);
+    g.fillStyle(CARTOON.hexGold, 1);
+    g.fillRoundedRect(cx - 14, cy2 - 12, 28, 16, 3);
+    // 冠齿
+    [cx - 10, cx - 2, cx + 6, cx + 14].forEach((cx2, idx) => {
+      g.fillStyle(idx === 1 ? CARTOON.hexGold : (idx === 2 ? 0xff6a8a : 0x5cb3ea), 1);
+      g.beginPath();
+      g.moveTo(cx2 - 3, cy2 - 12);
+      g.lineTo(cx2, cy2 - 22);
+      g.lineTo(cx2 + 3, cy2 - 12);
+      g.closePath(); g.fillPath();
+    });
+    scene.add.text(cx, cy2 - 2, '👑', { fontSize: '20px' }).setOrigin(0.5);
+  }
+  // 特殊：8关和12关带魔王面具
+  if (typeof stageNum === 'number' && (stageNum === 8 || stageNum === 12) && !locked) {
+    scene.add.text(cx, sy - 14, '👹', { fontSize: '22px' }).setOrigin(0.5);
+  }
+
+  c.add(g);
+  return c;
+}
+
+// =============================================
+// 六边形/菱形英雄卡片（图鉴风格，竖长切角）
+// =============================================
+export function drawHexHeroCard(
+  scene: Phaser.Scene,
+  x: number, y: number, w: number, h: number,
+  rarity: keyof typeof DS.rarity | 'SPLUS' = 'SSR',
+  opts: { owned?: boolean; portraitKey?: string; name?: string } = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const { owned = true } = opts;
+
+  // 稀有度颜色
+  const rarMap: Record<string, { bg: number; bgDark: number; edge: number; glow: number }> = {
+    N: { bg: 0x708090, bgDark: 0x4a5560, edge: 0xa0aab0, glow: 0xc0c8cc },
+    R: { bg: 0x4090d0, bgDark: 0x2070a0, edge: 0x7cc0ff, glow: 0xa0d4ff },
+    SR: { bg: 0xa060e0, bgDark: 0x7040a8, edge: 0xd59cff, glow: 0xe8bfff },
+    SSR: { bg: CARTOON.hexGold, bgDark: 0xc09030, edge: 0xffd76a, glow: 0xffe8a0 },
+    UR: { bg: 0xff6a8a, bgDark: 0xd04060, edge: 0xffb0c0, glow: 0xffd0dc },
+    SPLUS: { bg: CARTOON.hexPurple, bgDark: CARTOON.hexPurpleDark, edge: 0xd59fff, glow: 0xe8c0ff },
+  };
+  const r = rarMap[rarity] || rarMap.SR;
+
+  const g = scene.add.graphics();
+
+  // 光晕
+  if (owned) {
+    for (let i = 3; i > 0; i--) {
+      g.fillStyle(r.glow, 0.08 * i);
+      g.fillRoundedRect(-6 - i * 4, -6 - i * 4, w + 12 + i * 8, h + 12 + i * 8, 16 + i * 4);
+    }
+  }
+
+  // 六边形路径（竖长，上下切角）
+  function hexPath(gfx: Phaser.GameObjects.Graphics, px: number, py: number, pw: number, ph: number) {
+    const cutTop = ph * 0.08;
+    const cutBot = ph * 0.12;
+    gfx.beginPath();
+    gfx.moveTo(px + pw * 0.5, py);                 // 上中
+    gfx.lineTo(px + pw, py + cutTop);              // 右上切角
+    gfx.lineTo(px + pw, py + ph - cutBot);         // 右下切角
+    gfx.lineTo(px + pw * 0.5, py + ph);            // 下中
+    gfx.lineTo(px, py + ph - cutBot);              // 左下切角
+    gfx.lineTo(px, py + cutTop);                   // 左上切角
+    gfx.closePath();
+  }
+
+  // 外层边
+  g.fillStyle(r.edge, 0.8);
+  hexPath(g, -4, -4, w + 8, h + 8);
+  g.fillPath();
+
+  // 深色内层
+  g.fillStyle(r.bgDark, 1);
+  hexPath(g, 0, 0, w, h);
+  g.fillPath();
+
+  // 主色层（稍小一圈，制造边框感）
+  g.fillStyle(r.bg, 1);
+  hexPath(g, 3, 3, w - 6, h - 6);
+  g.fillPath();
+
+  // 内部渐变/花纹层（未获得则加黑遮罩）
+  g.fillStyle(owned ? 0xffffff : 0x000000, owned ? 0.12 : 0.55);
+  hexPath(g, 5, 5, w - 10, h - 10);
+  g.fillPath();
+
+  // 顶部切角高光边
+  g.lineStyle(2, 0xffffff, owned ? 0.55 : 0.15);
+  g.beginPath();
+  g.moveTo(w * 0.5, 4);
+  g.lineTo(w - 5, 4 + h * 0.08);
+  g.strokePath();
+
+  // 底部品质宝石底座
+  const gemW = w * 0.36, gemH = 18;
+  const gx = w / 2 - gemW / 2;
+  const gy = h - gemH - 10;
+  g.fillStyle(0x000000, 0.45);
+  g.fillRoundedRect(gx - 1, gy + 2, gemW + 2, gemH, 4);
+  g.fillStyle(r.bg, 1);
+  g.fillRoundedRect(gx, gy, gemW, gemH, 4);
+  g.lineStyle(1.5, r.edge, 1);
+  g.strokeRoundedRect(gx, gy, gemW, gemH, 4);
+  // 宝石高光
+  g.fillStyle(0xffffff, 0.35);
+  g.fillRoundedRect(gx + 2, gy + 2, gemW - 4, 5, 3);
+  // 宝石切面
+  g.lineStyle(1, 0xffffff, 0.4);
+  g.beginPath();
+  g.moveTo(gx + gemW / 2, gy + 2);
+  g.lineTo(gx + gemW / 2, gy + gemH - 2);
+  g.moveTo(gx + 2, gy + gemH / 2);
+  g.lineTo(gx + gemW - 2, gy + gemH / 2);
+  g.strokePath();
+
+  // "未获得"文字
+  if (!owned) {
+    const maskG = scene.add.graphics();
+    hexPath(maskG, 5, 5, w - 10, h - 10);
+    maskG.fillPath();
+    maskG.setAlpha(0);
+    c.add(maskG);
+
+    const mask = maskG.createGeometryMask();
+    c.add(g);
+
+    const label = scene.add.text(w / 2, h / 2 - 10, '未获得', {
+      fontFamily: DS.font.body,
+      fontSize: `${Math.floor(w * 0.22)}px`,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+    label.setMask(mask);
+    c.add(label);
+  } else if (opts.portraitKey) {
+    // 英雄头像（用 mask 裁剪到六边形内）
+    const maskG = scene.add.graphics();
+    hexPath(maskG, 5, 5, w - 10, h - 10);
+    maskG.fillPath();
+    const mask = maskG.createGeometryMask();
+    c.add(g);
+    c.add(maskG.setAlpha(0));
+
+    const portrait = scene.add.image(w / 2, h / 2 - 14, opts.portraitKey);
+    portrait.setDisplaySize(w * 1.1, h * 0.75);
+    portrait.setMask(mask);
+    c.add(portrait);
+  } else {
+    c.add(g);
+  }
+
+  // 名字条
+  if (opts.name) {
+    const nameBg = scene.add.graphics();
+    nameBg.fillStyle(0x000000, 0.65);
+    nameBg.fillRoundedRect(6, h * 0.52, w - 12, 22, 4);
+    nameBg.fillStyle(r.edge, 0.9);
+    nameBg.fillRect(6, h * 0.52, 3, 22);
+    c.add(nameBg);
+    const nt = scene.add.text(w / 2, h * 0.52 + 11, opts.name, {
+      fontFamily: DS.font.display,
+      fontSize: `${Math.floor(w * 0.18)}px`,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    c.add(nt);
+  }
+
+  c.setSize(w, h);
+  return c;
+}
+
+// =============================================
+// 主城/冒险背景（远景风车+城堡+小路）
+// =============================================
+export function drawMainCityBackground(
+  scene: Phaser.Scene,
+  w: number, h: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+
+  // ========== 1. 明亮天空（上45%） ==========
+  // 不用 fillGradientStyle 兼容问题，用分层渐变模拟
+  const skyLayers = 12;
+  for (let i = 0; i < skyLayers; i++) {
+    const t = i / skyLayers;
+    // 从亮蓝 #8fd4ff 过渡到浅蓝 #d8f0ff
+    const r = Math.floor(0x8f + (0xd8 - 0x8f) * t);
+    const gr = Math.floor(0xd4 + (0xf0 - 0xd4) * t);
+    const b = Math.floor(0xff + (0xff - 0xff) * t);
+    const col = (r << 16) | (gr << 8) | b;
+    g.fillStyle(col, 1);
+    g.fillRect(0, (h * 0.45 / skyLayers) * i, w, (h * 0.45 / skyLayers) + 1);
+  }
+
+  // 太阳光晕（右上）
+  const sunX = w - 120, sunY = 90;
+  for (let i = 8; i > 0; i--) {
+    g.fillStyle(0xffe9a0, 0.06 + (8 - i) * 0.01);
+    g.fillCircle(sunX, sunY, 24 + i * 18);
+  }
+  g.fillStyle(0xfff6c8, 1);
+  g.fillCircle(sunX, sunY, 34);
+  g.fillStyle(0xffffff, 0.7);
+  g.fillCircle(sunX - 8, sunY - 8, 10);
+
+  // ========== 2. 云朵 ==========
+  const drawCloud = (cx: number, cy: number, s: number) => {
+    const ellipses = [
+      { dx: -28, dy: 0, rx: 26, ry: 16 },
+      { dx: -8, dy: -8, rx: 28, ry: 20 },
+      { dx: 14, dy: -4, rx: 24, ry: 16 },
+      { dx: 30, dy: 2, rx: 22, ry: 14 },
+      { dx: -14, dy: 4, rx: 22, ry: 14 },
+    ];
+    for (let i = 0; i < 3; i++) {
+      ellipses.forEach(e => {
+        g.fillStyle(0xffffff, 0.85 - i * 0.2);
+        g.fillEllipse(cx + e.dx * s, cy + e.dy * s + i * 2, e.rx * s, e.ry * s);
+      });
+    }
+  };
+  drawCloud(90, 70, 1);
+  drawCloud(w - 160, 50, 0.9);
+  drawCloud(w * 0.45, 120, 0.7);
+  drawCloud(w * 0.7, 150, 0.55);
+  drawCloud(w * 0.2, 160, 0.5);
+
+  // ========== 3. 三层远山（背景） ==========
+  // 最远层：淡蓝灰山
+  const drawMountainRange = (baseY: number, amp: number, lightCol: number, darkCol: number, alpha: number) => {
+    g.fillStyle(lightCol, alpha);
+    g.beginPath();
+    g.moveTo(0, baseY + 40);
+    const peaks = 10;
+    for (let i = 0; i <= peaks; i++) {
+      const px = (w / peaks) * i;
+      const py = baseY - Math.abs(Math.sin(i * 1.1 + baseY)) * amp - (i % 2) * 14;
+      g.lineTo(px, py);
+    }
+    g.lineTo(w, baseY + 40);
+    g.closePath();
+    g.fillPath();
+  };
+  drawMountainRange(h * 0.30, 30, 0x9ccce8, 0x7ab0d8, 0.85);
+  drawMountainRange(h * 0.34, 26, 0x8ac0d8, 0x6aa0c0, 0.9);
+  drawMountainRange(h * 0.38, 20, 0x78b4c8, 0x5890b0, 0.95);
+
+  // ========== 4. 中景城堡 ==========
+  const castleX = w * 0.5, castleY = h * 0.33;
+  // 城堡主体石色
+  g.fillStyle(0xd8c8a8, 0.95);
+  g.fillRect(castleX - 72, castleY - 10, 144, 58);
+  g.fillRect(castleX - 84, castleY - 32, 34, 80);
+  g.fillRect(castleX + 50, castleY - 32, 34, 80);
+  g.fillRect(castleX - 22, castleY - 56, 44, 104);
+  // 城堡窗
+  g.fillStyle(0x5a7aa0, 1);
+  for (let i = 0; i < 3; i++) {
+    g.fillRect(castleX - 48 + i * 30, castleY + 10, 10, 16);
+  }
+  g.fillRect(castleX - 78, castleY - 10, 8, 12);
+  g.fillRect(castleX + 70, castleY - 10, 8, 12);
+  g.fillRect(castleX - 16, castleY - 38, 10, 16);
+  // 尖塔屋顶（蓝色）
+  g.fillStyle(0x3a78b8, 1);
+  // 左塔尖
+  g.beginPath();
+  g.moveTo(castleX - 84, castleY - 32);
+  g.lineTo(castleX - 67, castleY - 68);
+  g.lineTo(castleX - 50, castleY - 32);
+  g.closePath(); g.fillPath();
+  // 右塔尖
+  g.beginPath();
+  g.moveTo(castleX + 50, castleY - 32);
+  g.lineTo(castleX + 67, castleY - 68);
+  g.lineTo(castleX + 84, castleY - 32);
+  g.closePath(); g.fillPath();
+  // 中塔尖
+  g.beginPath();
+  g.moveTo(castleX - 22, castleY - 56);
+  g.lineTo(castleX, castleY - 108);
+  g.lineTo(castleX + 22, castleY - 56);
+  g.closePath(); g.fillPath();
+  // 塔尖金色旗帜
+  g.fillStyle(0xf0c040, 1);
+  g.fillRect(castleX - 1, castleY - 118, 2, 14);
+  g.beginPath();
+  g.moveTo(castleX + 1, castleY - 118);
+  g.lineTo(castleX + 14, castleY - 112);
+  g.lineTo(castleX + 1, castleY - 106);
+  g.closePath(); g.fillPath();
+
+  // ========== 5. 风车（左右各一） ==========
+  drawWindmillOnG(g, w * 0.18, h * 0.36, 1);
+  drawWindmillOnG(g, w * 0.82, h * 0.34, 0.8);
+
+  // ========== 6. 中层青绿丘（在城堡前） ==========
+  const hillY1 = h * 0.46;
+  g.fillStyle(0x6ab858, 1);
+  g.beginPath();
+  g.moveTo(0, hillY1 + 20);
+  for (let i = 0; i <= 10; i++) {
+    const px = (w / 10) * i;
+    const py = hillY1 - Math.sin(i * 0.8 + 2) * 26 - (i % 3) * 12;
+    g.lineTo(px, py);
+  }
+  g.lineTo(w, hillY1 + 20);
+  g.closePath();
+  g.fillPath();
+
+  // 亮草高光边
+  g.fillStyle(0x84cc68, 0.6);
+  g.beginPath();
+  g.moveTo(0, hillY1 + 8);
+  for (let i = 0; i <= 10; i++) {
+    const px = (w / 10) * i;
+    const py = hillY1 - 6 - Math.sin(i * 0.8 + 2) * 22 - (i % 3) * 10;
+    g.lineTo(px, py);
+  }
+  g.lineTo(w, hillY1 + 8);
+  g.closePath();
+  g.fillPath();
+
+  // ========== 7. 横向河流（穿过中间） ==========
+  const riverY = h * 0.52;
+  g.fillStyle(0x2f7eb5, 1);
+  g.fillRect(0, riverY - 6, w, 64);
+  g.fillStyle(0x5cb3ea, 1);
+  g.fillRect(0, riverY, w, 52);
+  g.fillStyle(0x9cdcff, 1);
+  g.fillRect(0, riverY + 2, w, 22);
+  // 河面波纹高光
+  for (let i = 0; i < 16; i++) {
+    const rx = 20 + i * (w / 16) + (i % 2) * 20;
+    const ry = riverY + 14 + (i % 3) * 14;
+    g.fillStyle(0xffffff, 0.5);
+    g.fillEllipse(rx, ry, 24, 4);
+  }
+
+  // ========== 8. 木桥（跨河中间） ==========
+  const bridgeX = w * 0.5, bridgeY = riverY + 26;
+  // 桥面阴影
+  g.fillStyle(0x5a3a10, 1);
+  g.fillRoundedRect(bridgeX - 130, bridgeY - 2, 260, 34, 4);
+  // 桥面木板
+  g.fillStyle(0xa06a30, 1);
+  g.fillRoundedRect(bridgeX - 128, bridgeY - 10, 256, 32, 4);
+  g.fillStyle(0xc08a50, 1);
+  g.fillRoundedRect(bridgeX - 126, bridgeY - 8, 252, 22, 3);
+  // 木板竖缝
+  g.lineStyle(1.5, 0x7a4a20, 0.7);
+  for (let i = -10; i <= 10; i++) {
+    const bx = bridgeX + i * 12;
+    g.lineBetween(bx, bridgeY - 8, bx, bridgeY + 14);
+  }
+  // 桥两侧栏杆柱
+  g.fillStyle(0x7a4a20, 1);
+  for (let i = -4; i <= 4; i++) {
+    const px = bridgeX + i * 28;
+    g.fillRect(px - 3, bridgeY - 22, 6, 18);
+    g.fillRect(px - 4, bridgeY - 24, 8, 4);
+  }
+  // 横杆
+  g.fillStyle(0x8a5a2a, 1);
+  g.fillRect(bridgeX - 128, bridgeY - 20, 256, 4);
+  g.fillRect(bridgeX - 128, bridgeY - 12, 256, 3);
+
+  // ========== 9. 栅栏（两侧） ==========
+  drawFenceOnG(g, w * 0.14, h * 0.48);
+  drawFenceOnG(g, w * 0.14 + 30, h * 0.48);
+  drawFenceOnG(g, w * 0.14 + 60, h * 0.48);
+  drawFenceOnG(g, w * 0.86, h * 0.49);
+  drawFenceOnG(g, w * 0.86 - 30, h * 0.49);
+
+  // ========== 10. 前台大青丘 ==========
+  const hillY2 = h * 0.66;
+  g.fillStyle(0x5aad32, 1);
+  g.beginPath();
+  g.moveTo(0, hillY2 + 30);
+  for (let i = 0; i <= 8; i++) {
+    const px = (w / 8) * i;
+    const py = hillY2 - Math.sin(i * 0.9 + 1.3) * 34 - (i % 2) * 18;
+    g.lineTo(px, py);
+  }
+  g.lineTo(w, hillY2 + 30);
+  g.closePath();
+  g.fillPath();
+  g.fillStyle(0x7ac94a, 0.55);
+  g.beginPath();
+  g.moveTo(0, hillY2 + 12);
+  for (let i = 0; i <= 8; i++) {
+    const px = (w / 8) * i;
+    const py = hillY2 - 10 - Math.sin(i * 0.9 + 1.3) * 30 - (i % 2) * 16;
+    g.lineTo(px, py);
+  }
+  g.lineTo(w, hillY2 + 12);
+  g.closePath();
+  g.fillPath();
+
+  // ========== 11. 弯曲小路（台阶通道，从河岸向下延伸） ==========
+  const rx0 = w * 0.5, ry0 = riverY + 60;
+  const rx1 = w * 0.44, ry1 = h * 0.78;
+  const rx2 = w * 0.62, ry2 = h - 140;
+  const roadBezier = (t: number) => {
+    const u = 1 - t;
+    return {
+      x: u * u * rx0 + 2 * u * t * rx1 + t * t * rx2,
+      y: u * u * ry0 + 2 * u * t * ry1 + t * t * ry2,
+    };
+  };
+  const roadSteps = 44;
+  const roadPts: { x: number; y: number }[] = [];
+  for (let i = 0; i <= roadSteps; i++) roadPts.push(roadBezier(i / roadSteps));
+
+  // 路阴影
+  g.lineStyle(78, 0x8a6a2a, 0.35);
+  g.beginPath();
+  g.moveTo(roadPts[0].x + 4, roadPts[0].y + 6);
+  roadPts.forEach(p => g.lineTo(p.x + 4, p.y + 6));
+  g.strokePath();
+  // 路深边
+  g.lineStyle(70, 0xa88038, 1);
+  g.beginPath();
+  g.moveTo(roadPts[0].x, roadPts[0].y);
+  roadPts.forEach(p => g.lineTo(p.x, p.y));
+  g.strokePath();
+  // 路中色
+  g.lineStyle(60, 0xd4a958, 1);
+  g.beginPath();
+  g.moveTo(roadPts[0].x, roadPts[0].y);
+  roadPts.forEach(p => g.lineTo(p.x, p.y));
+  g.strokePath();
+  // 路亮边
+  g.lineStyle(46, 0xe8c788, 1);
+  g.beginPath();
+  g.moveTo(roadPts[0].x, roadPts[0].y);
+  roadPts.forEach(p => g.lineTo(p.x, p.y));
+  g.strokePath();
+  // 路径上的小石子
+  for (let i = 0; i < 18; i++) {
+    const pt = roadPts[4 + i * 2];
+    g.fillStyle(0xc09a5a, 0.55);
+    g.fillCircle(pt.x + (i % 2 ? -12 : 14), pt.y + (i % 3) * 4, 2 + (i % 3));
+  }
+
+  // 石阶（在小路靠下部分铺几级）
+  for (let i = 0; i < 5; i++) {
+    const t = 0.5 + i * 0.09;
+    const p = roadBezier(t);
+    const nextP = roadBezier(t + 0.04);
+    g.fillStyle(0x9a8060, 1);
+    g.fillEllipse((p.x + nextP.x) / 2, (p.y + nextP.y) / 2, 60, 10);
+    g.fillStyle(0xc0a880, 0.8);
+    g.fillEllipse((p.x + nextP.x) / 2 - 1, (p.y + nextP.y) / 2 - 2, 54, 5);
+  }
+
+  // ========== 11b. 左侧石头遗迹（立柱+拱门+爬藤） ==========
+  const ruinX = w * 0.18, ruinY = h * 0.76;
+  // 遗迹阴影
+  g.fillStyle(0x000000, 0.22);
+  g.fillEllipse(ruinX + 4, ruinY + 6, 70, 14);
+  // 遗迹石台基
+  g.fillStyle(0x6a6a5a, 1);
+  g.fillRoundedRect(ruinX - 36, ruinY - 10, 72, 30, 4);
+  g.fillStyle(0x8a8a7a, 1);
+  g.fillRoundedRect(ruinX - 34, ruinY - 12, 68, 26, 3);
+  // 石砖缝
+  g.lineStyle(1, 0x5a5a4a, 0.6);
+  for (let i = 0; i < 3; i++) {
+    g.lineBetween(ruinX - 34, ruinY - 6 + i * 9, ruinX + 34, ruinY - 6 + i * 9);
+  }
+  // 左侧断柱
+  const colLX = ruinX - 18;
+  g.fillStyle(0x9a9a8a, 1);
+  g.fillRect(colLX - 6, ruinY - 70, 12, 60);
+  g.fillStyle(0xb0b0a0, 1);
+  g.fillRect(colLX - 8, ruinY - 74, 16, 6);
+  g.fillRect(colLX - 8, ruinY - 14, 16, 6);
+  // 断口（不规则）
+  g.fillStyle(0x7a7a6a, 1);
+  g.beginPath();
+  g.moveTo(colLX - 7, ruinY - 74);
+  g.lineTo(colLX - 3, ruinY - 80);
+  g.lineTo(colLX + 2, ruinY - 76);
+  g.lineTo(colLX + 8, ruinY - 82);
+  g.lineTo(colLX + 7, ruinY - 74);
+  g.closePath(); g.fillPath();
+  // 右侧完整柱
+  const colRX = ruinX + 18;
+  g.fillStyle(0x9a9a8a, 1);
+  g.fillRect(colRX - 6, ruinY - 110, 12, 100);
+  g.fillStyle(0xb0b0a0, 1);
+  g.fillRect(colRX - 10, ruinY - 116, 20, 8);
+  g.fillRect(colRX - 10, ruinY - 14, 20, 6);
+  // 柱头（科林斯式简单）
+  g.fillStyle(0xc0c0b0, 1);
+  g.fillRect(colRX - 12, ruinY - 120, 24, 6);
+  g.fillStyle(0x9a9a8a, 0.7);
+  g.fillEllipse(colRX, ruinY - 118, 14, 4);
+  // 横梁（残破）
+  g.fillStyle(0x8a8a7a, 1);
+  g.fillRect(colLX - 8, ruinY - 116, 22, 8);
+  g.beginPath();
+  g.moveTo(colLX + 14, ruinY - 116);
+  g.lineTo(colLX + 28, ruinY - 108);
+  g.lineTo(colLX + 14, ruinY - 100);
+  g.closePath(); g.fillPath();
+  // 爬藤（深绿色缠绕藤蔓）
+  g.fillStyle(0x2a6a2a, 0.9);
+  for (let v = 0; v < 3; v++) {
+    const vineX = colRX + 2 + v * 2;
+    let vy = ruinY - 116;
+    while (vy < ruinY - 10) {
+      const sway = Math.sin((vy + ruinY) * 0.08) * 3;
+      g.fillCircle(vineX + sway, vy, 1.8);
+      if (v === 1 && Math.random() > 0.6) {
+        // 叶子
+        g.fillStyle(0x4a9a4a, 0.9);
+        g.fillEllipse(vineX + sway + 5, vy, 4, 2.5);
+        g.fillStyle(0x2a6a2a, 0.9);
+      }
+      vy += 4;
+    }
+  }
+  // 石柱上的藤叶（左断柱）
+  g.fillStyle(0x4a9a4a, 0.9);
+  g.fillEllipse(colLX - 4, ruinY - 40, 6, 3);
+  g.fillEllipse(colLX + 6, ruinY - 28, 5, 2.8);
+
+  // ========== 11c. 右侧石塔（带红色瓦片屋顶） ==========
+  const towerX = w * 0.74, towerY = h * 0.58;
+  // 塔阴影
+  g.fillStyle(0x000000, 0.22);
+  g.fillEllipse(towerX + 5, towerY + 60, 44, 10);
+  // 塔身（灰色石砌，上窄下宽）
+  g.fillStyle(0x706a5a, 1);
+  g.beginPath();
+  g.moveTo(towerX - 30, towerY + 60);
+  g.lineTo(towerX - 22, towerY - 40);
+  g.lineTo(towerX + 22, towerY - 40);
+  g.lineTo(towerX + 30, towerY + 60);
+  g.closePath(); g.fillPath();
+  g.fillStyle(0x8a8472, 1);
+  g.beginPath();
+  g.moveTo(towerX - 26, towerY + 58);
+  g.lineTo(towerX - 20, towerY - 38);
+  g.lineTo(towerX + 0, towerY - 38);
+  g.lineTo(towerX + 0, towerY + 58);
+  g.closePath(); g.fillPath();
+  // 石砖纹
+  g.lineStyle(1, 0x5a5448, 0.6);
+  for (let ry = 0; ry < 10; ry++) {
+    const yL = towerY - 36 + ry * 10;
+    const insL = (1 - (towerY + 60 - yL) / 100) * 26;
+    g.lineBetween(towerX - insL, yL, towerX + insL, yL);
+    if (ry % 2 === 0) {
+      g.lineBetween(towerX, yL, towerX, yL + 10);
+    } else {
+      g.lineBetween(towerX - insL * 0.5, yL, towerX - insL * 0.5, yL + 10);
+      g.lineBetween(towerX + insL * 0.5, yL, towerX + insL * 0.5, yL + 10);
+    }
+  }
+  // 塔窗
+  g.fillStyle(0x1a2a3a, 0.95);
+  g.beginPath();
+  g.moveTo(towerX - 6, towerY - 10);
+  g.lineTo(towerX + 6, towerY - 10);
+  g.lineTo(towerX + 6, towerY + 12);
+  g.lineTo(towerX, towerY + 22);
+  g.lineTo(towerX - 6, towerY + 12);
+  g.closePath(); g.fillPath();
+  g.lineStyle(1.5, 0x3a4a5a, 1);
+  g.lineBetween(towerX, towerY - 10, towerX, towerY + 20);
+  // 屋檐
+  g.fillStyle(0x4a3a2a, 1);
+  g.fillRect(towerX - 28, towerY - 48, 56, 8);
+  g.fillStyle(0x6a5a4a, 0.85);
+  g.beginPath();
+  g.moveTo(towerX - 34, towerY - 40);
+  g.lineTo(towerX - 28, towerY - 48);
+  g.lineTo(towerX + 28, towerY - 48);
+  g.lineTo(towerX + 34, towerY - 40);
+  g.closePath(); g.fillPath();
+  // 红瓦屋顶（锥形+瓦片纹）
+  const roofH = 72;
+  g.fillStyle(0x7a2020, 1);
+  g.beginPath();
+  g.moveTo(towerX - 28, towerY - 48);
+  g.lineTo(towerX, towerY - 48 - roofH);
+  g.lineTo(towerX + 28, towerY - 48);
+  g.closePath(); g.fillPath();
+  // 瓦片层
+  const tileRows = 8;
+  for (let tr = 0; tr < tileRows; tr++) {
+    const prog = tr / tileRows;
+    const tY = towerY - 48 - roofH * (1 - prog * 0.92);
+    const tW = 28 * (0.2 + prog * 0.8);
+    const tileCol = tr % 2 === 0 ? 0xa83030 : 0x8a2828;
+    g.fillStyle(tileCol, 1);
+    g.fillRect(towerX - tW, tY, tW * 2, roofH / tileRows + 2);
+    // 瓦片弧（手动贝塞尔）
+    g.lineStyle(1, 0x5a1010, 0.7);
+    const tileN = Math.max(2, Math.floor(tW / 8));
+    for (let ti = 0; ti < tileN; ti++) {
+      const tx = towerX - tW + 2 + ti * ((tW * 2 - 4) / tileN);
+      const p0x = tx, p0y = tY + 2;
+      const p1x = tx + 4, p1y = tY + 6;
+      const p2x = tx + 8, p2y = tY + 2;
+      g.beginPath();
+      g.moveTo(p0x, p0y);
+      for (let bt = 1; bt <= 6; bt++) {
+        const tt = bt / 6;
+        const bx = (1 - tt) * (1 - tt) * p0x + 2 * (1 - tt) * tt * p1x + tt * tt * p2x;
+        const by = (1 - tt) * (1 - tt) * p0y + 2 * (1 - tt) * tt * p1y + tt * tt * p2y;
+        g.lineTo(bx, by);
+      }
+      g.strokePath();
+    }
+  }
+  // 屋顶尖小旗
+  g.fillStyle(0x5a5a5a, 1);
+  g.fillRect(towerX - 1, towerY - 48 - roofH - 12, 2, 14);
+  g.fillStyle(0xf0c040, 1);
+  g.beginPath();
+  g.moveTo(towerX + 1, towerY - 48 - roofH - 12);
+  g.lineTo(towerX + 12, towerY - 48 - roofH - 8);
+  g.lineTo(towerX + 1, towerY - 48 - roofH - 4);
+  g.closePath(); g.fillPath();
+
+  // ========== 11d. 中景小木屋（带红屋顶） ==========
+  const houseX = w * 0.60, houseY = h * 0.50;
+  // 屋身
+  g.fillStyle(0xf0e0c0, 1);
+  g.fillRoundedRect(houseX - 26, houseY - 8, 52, 40, 3);
+  g.fillStyle(0xe0d0b0, 1);
+  g.fillRect(houseX + 0, houseY - 8, 26, 40);
+  // 墙木线
+  g.lineStyle(1, 0xb09870, 0.7);
+  for (let wy = 0; wy < 4; wy++) {
+    g.lineBetween(houseX - 26, houseY + wy * 10, houseX + 26, houseY + wy * 10);
+  }
+  // 小窗
+  g.fillStyle(0x8adfff, 1);
+  g.fillRect(houseX + 8, houseY, 10, 12);
+  g.lineStyle(1.5, 0x7a5a3a, 1);
+  g.strokeRect(houseX + 8, houseY, 10, 12);
+  g.lineBetween(houseX + 13, houseY, houseX + 13, houseY + 12);
+  g.lineBetween(houseX + 8, houseY + 6, houseX + 18, houseY + 6);
+  // 门
+  g.fillStyle(0x6a4a20, 1);
+  g.fillRoundedRect(houseX - 16, houseY + 14, 12, 18, 6);
+  g.lineStyle(1.5, 0x4a2a10, 1);
+  g.strokeRoundedRect(houseX - 16, houseY + 14, 12, 18, 6);
+  g.fillStyle(CARTOON.hexGold, 1);
+  g.fillCircle(houseX - 7, houseY + 24, 1.2);
+  // 屋顶（三角+瓦片）
+  g.fillStyle(0x8a2020, 1);
+  g.beginPath();
+  g.moveTo(houseX - 34, houseY - 8);
+  g.lineTo(houseX, houseY - 46);
+  g.lineTo(houseX + 34, houseY - 8);
+  g.closePath(); g.fillPath();
+  // 瓦片
+  for (let tr = 0; tr < 6; tr++) {
+    const prog = tr / 6;
+    const tY = houseY - 8 - 38 * (1 - prog * 0.92);
+    const tW = 34 * (0.2 + prog * 0.8);
+    g.fillStyle(tr % 2 === 0 ? 0xb03030 : 0x902828, 1);
+    g.fillRect(houseX - tW, tY, tW * 2, 7);
+  }
+  // 烟囱
+  g.fillStyle(0x6a4a3a, 1);
+  g.fillRect(houseX + 12, houseY - 42, 10, 20);
+  g.fillStyle(0x8a6a5a, 1);
+  g.fillRect(houseX + 10, houseY - 44, 14, 4);
+  // 烟囱冒烟
+  g.fillStyle(0xffffff, 0.35);
+  for (let sk = 0; sk < 4; sk++) {
+    g.fillEllipse(houseX + 17 + sk * 3, houseY - 56 - sk * 8, 6 - sk, 6 - sk);
+  }
+
+  // 增强城堡：周围城墙+防御塔
+  drawCastleWallsOnG(g, castleX, castleY - 10, w, h);
+
+  // ========== 12. 前景草地（填满下方） ==========
+  const grassStart = h * 0.58;
+  const grassCols = 8;
+  for (let i = 0; i < grassCols; i++) {
+    const t = i / grassCols;
+    const r = Math.floor(0x7a + (0x3f - 0x7a) * t);
+    const gC = Math.floor(0xc9 + (0x8a - 0xc9) * t);
+    const b = Math.floor(0x4a + (0x25 - 0x4a) * t);
+    const col = (r << 16) | (gC << 8) | b;
+    g.fillStyle(col, 1);
+    g.fillRect(0, grassStart + ((h - grassStart) / grassCols) * i, w, (h - grassStart) / grassCols + 1);
+  }
+
+  // 草地斑块（亮色点缀）
+  for (let i = 0; i < 40; i++) {
+    const px = Math.random() * w;
+    const py = h * 0.62 + Math.random() * (h * 0.35);
+    const pr = 18 + Math.random() * 60;
+    g.fillStyle(Math.random() > 0.5 ? 0x5aad32 : 0x7ac94a, 0.28);
+    g.fillEllipse(px, py, pr, pr * 0.55);
+  }
+
+  // 小白花/蒲公英
+  for (let i = 0; i < 22; i++) {
+    const fx = 20 + Math.random() * (w - 40);
+    const fy = h * 0.65 + Math.random() * (h * 0.3);
+    const fcol = [0xffffff, 0xfff0a0, 0xff8aa0, 0xb0e8ff][Math.floor(Math.random() * 4)];
+    g.fillStyle(0x206025, 1);
+    g.fillRect(fx, fy, 1, 5);
+    g.fillStyle(fcol, 1);
+    g.fillCircle(fx, fy, 2.5);
+    g.fillStyle(0xffffff, 0.8);
+    g.fillCircle(fx - 0.5, fy - 0.5, 0.8);
+  }
+
+  return g;
+}
+
+function drawWindmillOnG(g: Phaser.GameObjects.Graphics, x: number, y: number, s = 1) {
+  // 塔
+  g.fillStyle(0xd8c89a, 1);
+  g.beginPath();
+  g.moveTo(x - 16 * s, y + 80 * s);
+  g.lineTo(x - 10 * s, y - 20 * s);
+  g.lineTo(x + 10 * s, y - 20 * s);
+  g.lineTo(x + 16 * s, y + 80 * s);
+  g.closePath(); g.fillPath();
+  g.fillStyle(0x8a5a2a, 1);
+  g.fillRect(x - 6 * s, y + 20 * s, 12 * s, 26 * s);
+  // 屋顶
+  g.fillStyle(CARTOON.castleRoof, 1);
+  g.beginPath();
+  g.moveTo(x - 12 * s, y - 20 * s);
+  g.lineTo(x, y - 36 * s);
+  g.lineTo(x + 12 * s, y - 20 * s);
+  g.closePath(); g.fillPath();
+  // 十字风叶
+  g.lineStyle(4 * s, 0xfaf0e0, 1);
+  g.lineBetween(x, y - 28 * s, x - 40 * s, y - 48 * s);
+  g.lineBetween(x, y - 28 * s, x + 40 * s, y - 8 * s);
+  g.lineBetween(x, y - 28 * s, x - 8 * s, y + 14 * s);
+  g.fillStyle(0x7a5a3a, 1);
+  g.fillCircle(x, y - 28 * s, 4 * s);
+  // 风叶挡板
+  const blades = [
+    { bx: -40, by: -48, r: -0.6 },
+    { bx: 40, by: -8, r: 0.4 },
+    { bx: -8, by: 14, r: 1.57 },
+  ];
+  g.save();
+  blades.forEach(B => {
+    g.translateCanvas(x, y - 28 * s);
+    g.rotateCanvas(B.r);
+    g.fillStyle(0xfaf0e0, 0.9);
+    g.fillRect(4 * s, -30 * s, 30 * s, 8 * s);
+    g.fillStyle(0x8a5a2a, 1);
+    g.fillRect(2 * s, -32 * s, 4 * s, 12 * s);
+    g.rotateCanvas(-B.r);
+    g.translateCanvas(-x, -(y - 28 * s));
+  });
+  g.restore();
+}
+
+function drawFenceOnG(g: Phaser.GameObjects.Graphics, x: number, y: number) {
+  g.fillStyle(0x8a5a2a, 1);
+  g.fillRect(x, y - 20, 4, 24);
+  g.fillRect(x + 10, y - 24, 4, 28);
+  g.fillRect(x + 20, y - 20, 4, 24);
+  g.fillStyle(0xa06a30, 1);
+  g.fillRect(x - 2, y - 14, 28, 3);
+  g.fillRect(x - 2, y - 5, 28, 3);
+  // 尖头
+  g.fillStyle(0x8a5a2a, 1);
+  g.beginPath();
+  g.moveTo(x, y - 20); g.lineTo(x + 2, y - 26); g.lineTo(x + 4, y - 20);
+  g.closePath(); g.fillPath();
+  g.beginPath();
+  g.moveTo(x + 10, y - 24); g.lineTo(x + 12, y - 32); g.lineTo(x + 14, y - 24);
+  g.closePath(); g.fillPath();
+  g.beginPath();
+  g.moveTo(x + 20, y - 20); g.lineTo(x + 22, y - 26); g.lineTo(x + 24, y - 20);
+  g.closePath(); g.fillPath();
+}
+
+// 城堡城墙（环绕中心城堡主体）
+function drawCastleWallsOnG(g: Phaser.GameObjects.Graphics, castleX: number, castleY: number, _w: number, _h: number) {
+  // 外围城墙（带城垛齿）
+  const wallL = castleX - 160, wallR = castleX + 160;
+  const wallY = castleY + 36;
+  // 墙主体
+  g.fillStyle(0xc8b898, 1);
+  g.fillRect(wallL, wallY - 6, wallR - wallL, 30);
+  g.fillStyle(0xd8c8a8, 0.9);
+  g.fillRect(wallL + 2, wallY - 4, wallR - wallL - 4, 26);
+  // 城垛（顶部齿）
+  const merlonN = 16;
+  for (let i = 0; i < merlonN; i++) {
+    if (i % 2 === 0) {
+      const mx = wallL + i * ((wallR - wallL) / merlonN);
+      g.fillStyle(0xc8b898, 1);
+      g.fillRect(mx, wallY - 14, (wallR - wallL) / merlonN, 10);
+      g.fillStyle(0xd8c8a8, 0.9);
+      g.fillRect(mx + 1, wallY - 13, (wallR - wallL) / merlonN - 2, 8);
+    }
+  }
+  // 城墙底阴影
+  g.fillStyle(0x7a6a4a, 1);
+  g.fillRect(wallL, wallY + 22, wallR - wallL, 4);
+  // 城墙石砖纹
+  g.lineStyle(1, 0x9a8a6a, 0.55);
+  const brickRows = 3;
+  for (let br = 0; br < brickRows; br++) {
+    const by = wallY + 2 + br * 9;
+    g.lineBetween(wallL + 2, by, wallR - 2, by);
+    const cols = 8;
+    for (let bc = 0; bc < cols; bc++) {
+      const off = (br % 2 === 0 ? 0 : (wallR - wallL) / cols / 2);
+      g.lineBetween(wallL + off + bc * ((wallR - wallL) / cols), by, wallL + off + bc * ((wallR - wallL) / cols), by + 9);
+    }
+  }
+  // 防御塔（左右两端塔）
+  const towers = [wallL - 10, wallR + 10];
+  towers.forEach((tx, ti) => {
+    const side = ti === 0 ? -1 : 1;
+    // 塔身
+    g.fillStyle(0xb8a888, 1);
+    g.fillRect(tx - 16, wallY - 50, 32, 74);
+    g.fillStyle(0xc8b898, 0.9);
+    g.fillRect(tx - 14 + side * 1, wallY - 48, 28, 70);
+    // 城垛（塔顶齿）
+    for (let mi = 0; mi < 4; mi++) {
+      g.fillStyle(0xb8a888, 1);
+      g.fillRect(tx - 16 + mi * 9, wallY - 58, 6, 10);
+    }
+    // 小窗
+    g.fillStyle(0x1a2a3a, 0.95);
+    g.fillRoundedRect(tx - 5, wallY - 28, 10, 14, 4);
+    g.lineStyle(1.5, 0x5a4a2a, 1);
+    g.strokeRoundedRect(tx - 5, wallY - 28, 10, 14, 4);
+    // 塔底加固
+    g.fillStyle(0x9a8a6a, 0.9);
+    g.fillRect(tx - 20, wallY + 18, 40, 8);
+  });
+}
+
+// =============================================
+// 浮动侧边图标（带红点提示）
+// =============================================
+export function drawFloatingSideIcon(
+  scene: Phaser.Scene,
+  x: number, y: number, size: number,
+  iconGlyph: string, label: string,
+  color: number,
+  onClick: () => void,
+  opts: { badge?: boolean; subLabel?: string } = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const g = scene.add.graphics();
+
+  // 阴影
+  g.fillStyle(0x000000, 0.25);
+  g.fillCircle(size / 2 + 2, size / 2 + 4, size / 2);
+
+  // 蓝色外框（截图风格：蓝色圆角方形）
+  const panelSize = size + 8;
+  g.fillStyle(0x1a5a98, 0.85);
+  g.fillRoundedRect(-2, 0, panelSize, panelSize, 14);
+  g.fillStyle(0x2a7fc8, 1);
+  g.fillRoundedRect(0, -2, panelSize - 4, panelSize - 4, 13);
+  // 内浅蓝（高光）
+  g.fillStyle(0x6ab8f0, 0.55);
+  g.fillRoundedRect(2, 0, panelSize - 8, (panelSize - 8) * 0.55, 11);
+  // 白色高光边
+  g.lineStyle(1.5, 0xffffff, 0.55);
+  g.strokeRoundedRect(2, 0, panelSize - 8, panelSize - 8, 12);
+
+  // 图标
+  const icon = scene.add.text(panelSize / 2 - 2, panelSize / 2 - 4, iconGlyph, {
+    fontFamily: DS.font.display,
+    fontSize: `${Math.floor(size * 0.55)}px`,
+    color: '#ffffff',
+    fontStyle: 'bold',
+    stroke: 'rgba(0,40,80,0.5)',
+    strokeThickness: 2,
+  }).setOrigin(0.5);
+  c.add(g);
+  c.add(icon);
+
+  // 文字标签
+  const labelT = scene.add.text(panelSize / 2 - 2, panelSize + 14, label, {
+    fontFamily: DS.font.body,
+    fontSize: '16px',
+    color: '#ffffff',
+    fontStyle: 'bold',
+    stroke: '#000000',
+    strokeThickness: 2,
+  }).setOrigin(0.5);
+  c.add(labelT);
+
+  if (opts.subLabel) {
+    const sub = scene.add.text(panelSize / 2 - 2, panelSize + 32, opts.subLabel, {
+      fontFamily: DS.font.body,
+      fontSize: '13px',
+      color: '#ffe08a',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    c.add(sub);
+  }
+
+  // 红点提示
+  if (opts.badge) {
+    const bd = scene.add.graphics();
+    bd.fillStyle(0xff4a4a, 1);
+    bd.fillCircle(panelSize - 6, 4, 7);
+    bd.lineStyle(1.5, 0xffffff, 1);
+    bd.strokeCircle(panelSize - 6, 4, 7);
+    c.add(bd);
+  }
+
+  c.setSize(panelSize, panelSize + (opts.subLabel ? 40 : 22));
+  c.setInteractive(new Phaser.Geom.Rectangle(0, 0, panelSize, panelSize), Phaser.Geom.Rectangle.Contains);
+  c.on('pointerdown', () => {
+    scene.tweens.add({ targets: c, scaleX: 0.92, scaleY: 0.92, duration: 60, yoyo: true });
+    onClick();
+  });
+  return c;
+}
+
+// =============================================
+// 底部蓝色 Tab Bar（截图风格：圆角蓝色菱形按钮）
+// =============================================
+export function drawCartoonTabBar(
+  scene: Phaser.Scene,
+  tabs: { name: string; glyph: string; onClick: () => void; active?: boolean; locked?: boolean }[],
+  containerY?: number,
+) {
+  const h = 112;
+  const y = containerY ?? GAME_HEIGHT_REF - h;
+  const pad = 8;
+  const tw = (GAME_WIDTH_REF - pad * 2) / tabs.length;
+
+  const bg = scene.add.graphics();
+  // 底部渐变蓝（分层避免兼容问题）
+  const tabLayers = 6;
+  for (let i = 0; i < tabLayers; i++) {
+    const t = i / tabLayers;
+    const r = Math.floor(0x2a + (0x1a - 0x2a) * t);
+    const gc = Math.floor(0x6f + (0x4f - 0x6f) * t);
+    const b = Math.floor(0xb5 + (0x85 - 0xb5) * t);
+    const col = (r << 16) | (gc << 8) | b;
+    bg.fillStyle(col, 1);
+    const y0 = y + (h / tabLayers) * i;
+    bg.fillRect(0, y0, GAME_WIDTH_REF, (h / tabLayers) + 1);
+  }
+  // 顶部亮色边
+  bg.fillStyle(CARTOON.tabBlueLight, 0.7);
+  bg.fillRect(0, y, GAME_WIDTH_REF, 3);
+  bg.fillStyle(0xffffff, 0.12);
+  bg.fillRect(0, y + 4, GAME_WIDTH_REF, 2);
+
+  tabs.forEach((t, i) => {
+    const cx = pad + i * tw + tw / 2;
+    const cy = y + h / 2 - 2;
+
+    // 激活态高亮框
+    if (t.active) {
+      const ag = scene.add.graphics();
+      ag.fillStyle(CARTOON.tabBlueLight, 0.35);
+      ag.fillRoundedRect(cx - tw / 2 + 4, y + 6, tw - 8, h - 14, 14);
+      ag.lineStyle(2, 0x9cdcff, 0.8);
+      ag.strokeRoundedRect(cx - tw / 2 + 4, y + 6, tw - 8, h - 14, 14);
+      ag.fillStyle(CARTOON.hexGold, 1);
+      ag.fillRect(cx - tw / 2 + 10, y + 6, tw - 20, 3);
+    }
+
+    const iconY = cy - 14;
+    const glyphT = scene.add.text(cx, iconY, t.glyph, {
+      fontFamily: DS.font.display,
+      fontSize: '30px',
+      color: t.active ? '#ffd76a' : (t.locked ? '#5a7aa0' : '#ffffff'),
+      fontStyle: 'bold',
+      stroke: 'rgba(0,30,60,0.6)',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+
+    if (t.locked) {
+      const lk = scene.add.text(cx + 14, iconY - 14, '🔒', { fontSize: '14px' }).setOrigin(0.5);
+    }
+
+    scene.add.text(cx, cy + 32, t.name, {
+      fontFamily: DS.font.body,
+      fontSize: '17px',
+      color: t.active ? '#ffd76a' : (t.locked ? '#5a7aa0' : '#ffffff'),
+      fontStyle: t.active ? 'bold' : '500',
+      stroke: 'rgba(0,30,60,0.7)',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+
+    // 点击区
+    const hit = scene.add.rectangle(cx, cy, tw - 4, h - 8, 0xffffff, 0).setInteractive();
+    hit.on('pointerdown', () => {
+      if (!t.locked) t.onClick();
+    });
+  });
+}
+
+// 全局 GAME_WIDTH/GAME_HEIGHT 引用（widgets.ts 会导出）
+let GAME_WIDTH_REF = 450;
+let GAME_HEIGHT_REF = 800;
+export function setGameRefSize(w: number, h: number) {
+  GAME_WIDTH_REF = w;
+  GAME_HEIGHT_REF = h;
+}
+
+// =============================================
+// 城堡背景（英雄详情页）
+// =============================================
+export function drawCastleBackground(
+  scene: Phaser.Scene,
+  w: number, h: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+
+  // 天空（分层替代 fillGradientStyle）
+  const skyL = 12;
+  for (let i = 0; i < skyL; i++) {
+    const t = i / skyL;
+    const r = Math.floor(0x9f + (0xe8 - 0x9f) * t);
+    const gc = Math.floor(0xd8 + (0xf8 - 0xd8) * t);
+    const b = Math.floor(0xff + (0xff - 0xff) * t);
+    const col = (r << 16) | (gc << 8) | b;
+    g.fillStyle(col, 1);
+    g.fillRect(0, (h / skyL) * i, w, (h / skyL) + 1);
+  }
+
+  // 远处云朵
+  for (let i = 0; i < 4; i++) {
+    const cx = 60 + i * (w / 4);
+    const cy = 60 + (i % 2) * 50;
+    for (let j = 0; j < 4; j++) {
+      g.fillStyle(0xffffff, 0.75 - j * 0.12);
+      g.fillEllipse(cx + (j - 2) * 18, cy + (j % 2) * 5, 32, 18);
+    }
+  }
+
+  // 背景远山
+  g.fillStyle(0x8ab8d8, 0.7);
+  g.beginPath();
+  g.moveTo(0, h * 0.45);
+  g.lineTo(w * 0.2, h * 0.32);
+  g.lineTo(w * 0.4, h * 0.42);
+  g.lineTo(w * 0.6, h * 0.30);
+  g.lineTo(w * 0.85, h * 0.40);
+  g.lineTo(w, h * 0.36);
+  g.lineTo(w, h * 0.5);
+  g.lineTo(0, h * 0.5);
+  g.closePath(); g.fillPath();
+
+  // 主城堡（背景）
+  const cx = w / 2, cy = h * 0.42;
+  g.fillStyle(CARTOON.castleShade, 0.6);
+  g.fillRect(cx - 90, cy, 180, 60);
+  g.fillRect(cx - 110, cy - 30, 40, 90);
+  g.fillRect(cx + 70, cy - 30, 40, 90);
+  g.fillRect(cx - 25, cy - 60, 50, 120);
+  g.fillStyle(CARTOON.castleStone, 0.7);
+  g.fillRect(cx - 88, cy + 2, 176, 56);
+  g.fillRect(cx - 108, cy - 28, 36, 86);
+  g.fillRect(cx + 72, cy - 28, 36, 86);
+  g.fillRect(cx - 23, cy - 58, 46, 116);
+  // 屋顶
+  g.fillStyle(CARTOON.castleRoof, 0.85);
+  for (const [tx, tw, th] of [[cx - 110, 40, 30], [cx + 70, 40, 30], [cx - 25, 50, 50]] as const) {
+    g.beginPath();
+    g.moveTo(tx, cy - 30 + (th === 50 ? -30 : 0));
+    g.lineTo(tx + tw / 2, cy - 30 - th + (th === 50 ? -30 : 0));
+    g.lineTo(tx + tw, cy - 30 + (th === 50 ? -30 : 0));
+    g.closePath(); g.fillPath();
+  }
+  // 窗
+  g.fillStyle(0x6080a0, 0.7);
+  for (let wi = 0; wi < 4; wi++) {
+    g.fillRect(cx - 70 + wi * 40, cy + 15, 16, 22);
+  }
+
+  // 左右小房子
+  for (const side of [-1, 1]) {
+    const hx = cx + side * (w * 0.38);
+    const hy = h * 0.52;
+    g.fillStyle(0xe8d8b8, 0.85);
+    g.fillRect(hx - 36, hy, 72, 50);
+    g.fillStyle(CARTOON.castleRoof, 0.9);
+    g.beginPath();
+    g.moveTo(hx - 42, hy);
+    g.lineTo(hx, hy - 32);
+    g.lineTo(hx + 42, hy);
+    g.closePath(); g.fillPath();
+    g.fillStyle(0x60a0e0, 0.7);
+    g.fillRect(hx - 20, hy + 14, 14, 18);
+    g.fillRect(hx + 6, hy + 14, 14, 18);
+    g.fillStyle(0x8a5a2a, 0.9);
+    g.fillRect(hx - 8, hy + 26, 16, 24);
+  }
+
+  // 石砌平台地面（下半部分，分层渐变替代 fillGradientStyle）
+  const platY = h * 0.62;
+  const platH = h * 0.38;
+  const platL = 8;
+  for (let i = 0; i < platL; i++) {
+    const t = i / platL;
+    const r = Math.floor(0xd8 + (0x88 - 0xd8) * t);
+    const gc = Math.floor(0xc8 + (0x78 - 0xc8) * t);
+    const b = Math.floor(0xa8 + (0x58 - 0xa8) * t);
+    const col = (r << 16) | (gc << 8) | b;
+    g.fillStyle(col, 1);
+    const y0 = platY + (platH / platL) * i;
+    g.fillRect(0, y0, w, (platH / platL) + 1);
+  }
+
+  // 石头地面砖缝
+  g.lineStyle(1.5, 0x8a7a5a, 0.55);
+  const stoneRows = 5;
+  for (let r = 0; r < stoneRows; r++) {
+    const ry = h * 0.62 + r * ((h * 0.38) / stoneRows);
+    g.beginPath();
+    g.moveTo(0, ry);
+    for (let x = 0; x <= w; x += 60) {
+      const yOff = Math.sin(x * 0.02 + r) * 2;
+      g.lineTo(x, ry + yOff);
+    }
+    g.strokePath();
+  }
+  for (let r = 0; r < stoneRows; r++) {
+    const ry = h * 0.62 + r * ((h * 0.38) / stoneRows);
+    for (let x = (r % 2) * 30; x < w; x += 60) {
+      g.beginPath();
+      g.moveTo(x, ry);
+      g.lineTo(x, ry + ((h * 0.38) / stoneRows));
+      g.strokePath();
+    }
+  }
+
+  return g;
+}
+
+// =============================================
+// 石砌圆形展示台（英雄展示）
+// =============================================
+export function drawStonePlatform(
+  scene: Phaser.Scene,
+  x: number, y: number, r: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+
+  // 阴影
+  g.fillStyle(0x000000, 0.28);
+  g.fillEllipse(x + 4, y + r * 0.4 + 4, r * 2.1, r * 0.45);
+
+  // 下层（大）
+  g.fillStyle(0x8a7a5a, 1);
+  g.fillEllipse(x, y + r * 0.38, r * 2, r * 0.42);
+  g.fillStyle(0xa89878, 1);
+  g.fillEllipse(x, y + r * 0.32, r * 1.94, r * 0.38);
+
+  // 中层
+  g.fillStyle(0x8a7a5a, 1);
+  g.fillEllipse(x, y + r * 0.12, r * 1.7, r * 0.34);
+  g.fillStyle(0xb8a888, 1);
+  g.fillEllipse(x, y + r * 0.06, r * 1.64, r * 0.3);
+
+  // 顶层
+  g.fillStyle(0x9a8a6a, 1);
+  g.fillEllipse(x, y - r * 0.18, r * 1.3, r * 0.28);
+  g.fillStyle(0xc8b898, 1);
+  g.fillEllipse(x, y - r * 0.22, r * 1.24, r * 0.24);
+
+  // 顶层高光
+  g.fillStyle(0xe8d8b8, 0.65);
+  g.fillEllipse(x - r * 0.15, y - r * 0.28, r * 0.5, r * 0.07);
+
+  // 石砖缝
+  g.lineStyle(1.5, 0x6a5a3a, 0.7);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    g.beginPath();
+    g.moveTo(x + Math.cos(a) * r * 1.24, y - r * 0.22);
+    g.lineTo(x + Math.cos(a) * r * 1.94, y + r * 0.32);
+    g.strokePath();
+  }
+
+  return g;
+}
+
+// 装备槽（超能世界图鉴风格：多层蓝框+圆角+内发光）
+export function drawEquipmentSlot(
+  scene: Phaser.Scene,
+  x: number, y: number, size: number,
+  slotType: 'weapon' | 'helmet' | 'armor' | 'boots' | 'locked',
+  item?: { icon?: string; rarity?: string; name?: string },
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const g = scene.add.graphics();
+  const pad = 0;
+  const radius = 16;
+
+  // 稀有度颜色（装备本身的品质色）
+  const rarityColors: Record<string, { bg: number; edge: number; glow: number }> = {
+    N:   { bg: 0x505a66, edge: 0x8a95a0, glow: 0xa0aab0 },
+    R:   { bg: 0x2a6ea0, edge: 0x5cb0e8, glow: 0x7cd0ff },
+    SR:  { bg: 0x703aaa, edge: 0xb878ff, glow: 0xd59cff },
+    SSR: { bg: 0xb08a20, edge: 0xffd76a, glow: 0xffe8a0 },
+  };
+
+  if (slotType === 'locked') {
+    // === 锁定槽：深色圆角方 + 粗蓝边 ===
+    // 外蓝框厚底
+    g.fillStyle(0x0a2040, 1);
+    g.fillRoundedRect(pad, pad, size - pad * 2, size - pad * 2, radius);
+    // 内层蓝边框
+    g.fillStyle(0x1a4a80, 1);
+    g.fillRoundedRect(pad + 3, pad + 3, size - pad * 2 - 6, size - pad * 2 - 6, radius - 3);
+    // 内暗
+    g.fillStyle(0x101828, 0.96);
+    g.fillRoundedRect(pad + 5, pad + 5, size - pad * 2 - 10, size - pad * 2 - 10, radius - 5);
+    // 蓝框亮边描线
+    g.lineStyle(2, 0x5aa0d8, 0.9);
+    g.strokeRoundedRect(pad + 3, pad + 3, size - pad * 2 - 6, size - pad * 2 - 6, radius - 3);
+    g.lineStyle(1, 0x9cdcff, 0.5);
+    g.strokeRoundedRect(pad + 1, pad + 1, size - pad * 2 - 2, size - pad * 2 - 2, radius - 1);
+    // 锁
+    const lk = scene.add.text(size / 2, size / 2, '🔒', { fontSize: `${size * 0.42}px` }).setOrigin(0.5);
+    c.add(g); c.add(lk);
+    c.setSize(size, size);
+    return c;
+  }
+
+  const typeMap: Record<string, { glyph: string }> = {
+    weapon: { glyph: '⚔' },
+    helmet: { glyph: '⛑' },
+    armor:  { glyph: '🛡' },
+    boots:  { glyph: '👢' },
+  };
+
+  // === 空槽 OR 有装备：通用多层粗蓝外框 ===
+  // 1. 最外深边（蓝框底座）
+  g.fillStyle(0x0a2040, 1);
+  g.fillRoundedRect(pad, pad, size - pad * 2, size - pad * 2, radius);
+  // 2. 深蓝第二层
+  g.fillStyle(0x1e5ea8, 1);
+  g.fillRoundedRect(pad + 2, pad + 2, size - pad * 2 - 4, size - pad * 2 - 4, radius - 2);
+  // 3. 主蓝第三层（亮蓝）
+  g.fillStyle(0x3a8ae8, 1);
+  g.fillRoundedRect(pad + 4, pad + 4, size - pad * 2 - 8, size - pad * 2 - 8, radius - 4);
+  // 4. 亮蓝高光弧
+  g.fillStyle(0x7ac0ff, 0.75);
+  g.fillRoundedRect(pad + 5, pad + 5, size - pad * 2 - 10, (size - pad * 2 - 10) * 0.45, radius - 5);
+  // 5. 最内暗底（放装备内容）
+  g.fillStyle(0x081428, 0.96);
+  g.fillRoundedRect(pad + 6, pad + 6, size - pad * 2 - 12, size - pad * 2 - 12, radius - 6);
+  // 6. 蓝框金边高光描线
+  g.lineStyle(2.2, 0x9cdcff, 0.95);
+  g.strokeRoundedRect(pad + 2, pad + 2, size - pad * 2 - 4, size - pad * 2 - 4, radius - 2);
+  g.lineStyle(1.2, 0xffffff, 0.55);
+  g.strokeRoundedRect(pad + 6, pad + 6, size - pad * 2 - 12, size - pad * 2 - 12, radius - 6);
+
+  if (!item) {
+    // === 空槽：中央显示类型图标 ===
+    const type = typeMap[slotType];
+    // 空槽背景色（浅蓝底）
+    g.fillStyle(0x1a5a98, 0.35);
+    g.fillRoundedRect(pad + 8, pad + 8, size - pad * 2 - 16, size - pad * 2 - 16, radius - 8);
+    const glyph = scene.add.text(size / 2, size / 2, type.glyph, {
+      fontFamily: DS.font.display,
+      fontSize: `${size * 0.48}px`,
+      color: '#9cdcff',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,30,60,0.8)',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+    c.add(g); c.add(glyph);
+  } else {
+    // === 有装备：稀有度色框 + 图标 + 星级 ===
+    const rc = rarityColors[item.rarity || 'N'] || rarityColors.N;
+    // 稀有度内框（替代最内暗底的一部分）
+    const innerPad = 8;
+    // 稀有度外发光
+    for (let i = 3; i > 0; i--) {
+      g.fillStyle(rc.glow, 0.08 * i);
+      g.fillRoundedRect(innerPad - i, innerPad - i, size - innerPad * 2 + i * 2, size - innerPad * 2 + i * 2, radius - innerPad + i);
+    }
+    // 稀有度深边
+    g.fillStyle(rc.edge, 0.2);
+    g.fillRoundedRect(innerPad, innerPad, size - innerPad * 2, size - innerPad * 2, radius - innerPad);
+    // 稀有度主色
+    g.fillStyle(rc.bg, 0.9);
+    g.fillRoundedRect(innerPad + 2, innerPad + 2, size - innerPad * 2 - 4, size - innerPad * 2 - 4, radius - innerPad - 2);
+    // 稀有度顶部高光
+    g.fillStyle(0xffffff, 0.22);
+    g.fillRoundedRect(innerPad + 3, innerPad + 3, size - innerPad * 2 - 6, (size - innerPad * 2 - 6) * 0.45, radius - innerPad - 3);
+    // 稀有度描边
+    g.lineStyle(2, rc.edge, 1);
+    g.strokeRoundedRect(innerPad + 1, innerPad + 1, size - innerPad * 2 - 2, size - innerPad * 2 - 2, radius - innerPad - 1);
+    g.lineStyle(1, 0xffffff, 0.4);
+    g.strokeRoundedRect(innerPad + 3, innerPad + 3, size - innerPad * 2 - 6, size - innerPad * 2 - 6, radius - innerPad - 3);
+
+    // 装备图标
+    const glyph = scene.add.text(size / 2, size / 2, item.icon || '✦', {
+      fontFamily: DS.font.display,
+      fontSize: `${size * 0.5}px`,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,0,0,0.85)',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+    c.add(glyph);
+
+    // SSR稀有度：3星在底部
+    if (item.rarity === 'SSR') {
+      for (let i = 0; i < 3; i++) {
+        const sx = size / 2 - 14 + i * 14;
+        const sy = size - 10;
+        scene.add.text(sx, sy + 1, '★', {
+          fontSize: '12px', color: '#5a3a08', stroke: '#000000', strokeThickness: 1,
+        }).setOrigin(0.5);
+        scene.add.text(sx, sy, '★', {
+          fontSize: '12px', color: '#ffd76a',
+        }).setOrigin(0.5);
+      }
+    }
+    c.add(g);
+  }
+  c.setSize(size, size);
+  return c;
+}
+
+// =============================================
+// 竖版华丽镜框英雄卡片（超能世界图鉴截图风格）
+// - 顶部：哥特式尖拱
+// - 底部：尖拱向下
+// - 多层金色华丽边框
+// - 卡底紫色/金色按稀有度
+// - 底部正中八角宝石
+// =============================================
+export function drawOrnateHeroCard(
+  scene: Phaser.Scene,
+  x: number, y: number, w: number, h: number,
+  rarity: keyof typeof DS.rarity | 'SPLUS' = 'SSR',
+  opts: { owned?: boolean; portraitKey?: string; name?: string } = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const { owned = true } = opts;
+
+  // 稀有度颜色
+  const rarMap: Record<string, {
+    bg: number; bgInner: number; bgDark: number;
+    edge: number; edgeBright: number; glow: number;
+  }> = {
+    N:     { bg: 0x708090, bgInner: 0x5a6470, bgDark: 0x3a4450, edge: 0xa0aab0, edgeBright: 0xd0d8dc, glow: 0xc0c8cc },
+    R:     { bg: 0x4090d0, bgInner: 0x3080c0, bgDark: 0x1a5a90, edge: 0x7cc0ff, edgeBright: 0xb8e0ff, glow: 0xa0d4ff },
+    SR:    { bg: 0xa060e0, bgInner: 0x8a50c8, bgDark: 0x5a3090, edge: 0xd59cff, edgeBright: 0xecc0ff, glow: 0xe8bfff },
+    SSR:   { bg: CARTOON.hexGold, bgInner: 0xe0b030, bgDark: 0x906010, edge: 0xffd76a, edgeBright: 0xffecb0, glow: 0xffe8a0 },
+    UR:    { bg: 0xff6a8a, bgInner: 0xe85070, bgDark: 0xa83050, edge: 0xffb0c0, edgeBright: 0xffd8dc, glow: 0xffd0dc },
+    SPLUS: { bg: CARTOON.hexPurple, bgInner: 0x9858c8, bgDark: CARTOON.hexPurpleDark, edge: 0xd59fff, edgeBright: 0xecc0ff, glow: 0xe8c0ff },
+  };
+  const r = rarMap[rarity] || rarMap.SR;
+
+  const g = scene.add.graphics();
+
+  // 外发光
+  if (owned) {
+    for (let i = 3; i > 0; i--) {
+      g.fillStyle(r.glow, 0.08 * i);
+      this_ornateFramePath(g, -6 - i * 4, -6 - i * 4, w + 12 + i * 8, h + 12 + i * 8);
+      g.fillPath();
+    }
+  }
+
+  // 最外层金边（粗）
+  g.fillStyle(r.edgeBright, 0.9);
+  this_ornateFramePath(g, -3, -3, w + 6, h + 6);
+  g.fillPath();
+
+  // 次层（深色描边）
+  g.fillStyle(r.bgDark, 1);
+  this_ornateFramePath(g, 0, 0, w, h);
+  g.fillPath();
+
+  // 主色层
+  g.fillStyle(r.edge, 1);
+  this_ornateFramePath(g, 3, 3, w - 6, h - 6);
+  g.fillPath();
+
+  // 深色内层（制造边框感）
+  g.fillStyle(r.bgDark, 1);
+  this_ornateFramePath(g, 6, 6, w - 12, h - 12);
+  g.fillPath();
+
+  // 内层稀有度底色（卡片内部展示区）
+  g.fillStyle(r.bgInner, 1);
+  this_ornateFramePath(g, 9, 9, w - 18, h - 18);
+  g.fillPath();
+
+  // 内部上层：深色阴影渐变感（多层）
+  for (let i = 0; i < 5; i++) {
+    const t = i / 5;
+    const shade = owned ? 0.18 + t * 0.15 : 0.55 + t * 0.1;
+    g.fillStyle(0x000000, shade);
+    const insetX = 9 + i * 1.5;
+    const insetY = 9 + i * 1.5;
+    this_ornateFramePath(g, insetX, insetY + i * 2, w - insetX * 2, (h - insetY * 2) * 0.55);
+    g.fillPath();
+  }
+
+  // 顶部金色装饰（4颗小圆金珠）
+  const beads = [w * 0.18, w * 0.38, w * 0.62, w * 0.82];
+  beads.forEach(bx => {
+    g.fillStyle(r.edgeBright, 1);
+    g.fillCircle(bx, h * 0.11, 3.5);
+    g.fillStyle(0xffffff, 0.7);
+    g.fillCircle(bx - 1, h * 0.11 - 1, 1.4);
+  });
+
+  // 侧边装饰点
+  for (let i = 0; i < 5; i++) {
+    const sy = h * 0.2 + i * (h * 0.13);
+    [w * 0.06, w * 0.94].forEach(sx => {
+      g.fillStyle(r.edge, 0.85);
+      g.fillCircle(sx, sy, 2.2);
+    });
+  }
+
+  // ==== 底部稀有度宝石（八角形） ====
+  const gemR = w * 0.16;
+  const gx = w / 2;
+  const gy = h - h * 0.09;
+  // 宝石外圈金边
+  g.fillStyle(r.edgeBright, 0.9);
+  this_fillOctagon(g, gx, gy, gemR + 4);
+  g.fillPath();
+  g.fillStyle(r.bgDark, 1);
+  this_fillOctagon(g, gx, gy, gemR + 2);
+  g.fillPath();
+  // 宝石本体
+  g.fillStyle(r.bg, 1);
+  this_fillOctagon(g, gx, gy, gemR);
+  g.fillPath();
+  g.fillStyle(r.edge, 0.9);
+  this_fillOctagon(g, gx, gy, gemR - 3);
+  g.fillPath();
+  // 宝石切面高光
+  g.fillStyle(0xffffff, 0.5);
+  g.beginPath();
+  g.moveTo(gx - gemR * 0.4, gy - gemR * 0.4);
+  g.lineTo(gx, gy - gemR * 0.6);
+  g.lineTo(gx + gemR * 0.15, gy - gemR * 0.25);
+  g.lineTo(gx - gemR * 0.2, gy);
+  g.closePath();
+  g.fillPath();
+  // 宝石十字切痕
+  g.lineStyle(1, 0xffffff, 0.45);
+  g.beginPath();
+  g.moveTo(gx, gy - gemR * 0.6); g.lineTo(gx, gy + gemR * 0.6);
+  g.moveTo(gx - gemR * 0.6, gy); g.lineTo(gx + gemR * 0.6, gy);
+  g.strokePath();
+
+  // ===== 头像 / 未获得遮罩 =====
+  if (!owned) {
+    // 先加边框graphics到容器
+    c.add(g);
+
+    // 内部mask区域
+    const maskG = scene.add.graphics();
+    this_ornateFramePath(maskG, 10, 10, w - 20, h - 20);
+    maskG.fillPath();
+    maskG.setAlpha(0);
+    c.add(maskG);
+    const mask = maskG.createGeometryMask();
+
+    // 深色遮罩（半透明黑）
+    const darkOverlay = scene.add.graphics();
+    this_ornateFramePath(darkOverlay, 10, 10, w - 20, h - 20);
+    darkOverlay.fillPath();
+    darkOverlay.setAlpha(0.72);
+    darkOverlay.setMask(mask);
+    c.add(darkOverlay);
+
+    // "未获得"大字（居中偏上）
+    const label = scene.add.text(w / 2, h * 0.38, '未获得', {
+      fontFamily: DS.font.body,
+      fontSize: `${Math.floor(w * 0.26)}px`,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
+    label.setMask(mask);
+    c.add(label);
+  } else if (opts.portraitKey) {
+    // 已获得：头像
+    c.add(g);
+
+    const maskG = scene.add.graphics();
+    this_ornateFramePath(maskG, 10, 10, w - 20, h - 20);
+    maskG.fillPath();
+    maskG.setAlpha(0);
+    c.add(maskG);
+    const mask = maskG.createGeometryMask();
+
+    const portrait = scene.add.image(w / 2, h * 0.42, opts.portraitKey);
+    portrait.setDisplaySize(w * 1.15, h * 0.7);
+    portrait.setMask(mask);
+    c.add(portrait);
+
+    // 内部高光边（左上）
+    const highlight = scene.add.graphics();
+    highlight.fillStyle(0xffffff, 0.18);
+    this_ornateFramePath(highlight, 10, 10, w - 20, (h - 20) * 0.3);
+    highlight.fillPath();
+    highlight.setMask(mask);
+    c.add(highlight);
+  } else {
+    c.add(g);
+  }
+
+  // 名字条（如果有名字，在卡片底部上方）
+  if (opts.name && owned) {
+    const nameY = h * 0.76;
+    const nameBg = scene.add.graphics();
+    nameBg.fillStyle(0x000000, 0.62);
+    nameBg.fillRoundedRect(w * 0.12, nameY - 12, w * 0.76, 24, 5);
+    nameBg.fillStyle(r.edge, 0.95);
+    nameBg.fillRect(w * 0.12, nameY - 12, 3, 24);
+    nameBg.fillRect(w * 0.88 - 3, nameY - 12, 3, 24);
+    c.add(nameBg);
+    const nt = scene.add.text(w / 2, nameY, opts.name, {
+      fontFamily: DS.font.display,
+      fontSize: `${Math.floor(w * 0.2)}px`,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    c.add(nt);
+  }
+
+  return c;
+}
+
+// 辅助：绘制华丽镜框形状路径（不fill/stroke，只设path）
+function this_ornateFramePath(gfx: Phaser.GameObjects.Graphics, px: number, py: number, pw: number, ph: number) {
+  // 顶部哥特尖拱控制点
+  const topArchH = ph * 0.14;         // 顶部拱高
+  const topShoulder = ph * 0.18;       // 肩部位置
+  // 底部尖拱控制点
+  const botArchH = ph * 0.1;           // 底部拱高（向下尖）
+  const botShoulder = ph * 0.9 - ph * 0.1; // 底部肩部
+  const sideInset = pw * 0.01;         // 侧边微内收
+
+  gfx.beginPath();
+  // 起点：顶部拱尖
+  gfx.moveTo(px + pw / 2, py);
+  // 右上曲线（拱顶 → 右肩）- 用分段模拟贝塞尔
+  const steps = 12;
+  // 右半拱：x 从 pw/2 → pw（线性），y 从 0 → topArchH（抛物线）
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = pw / 2 + (pw / 2 - sideInset) * t;
+    const y = topArchH * (1 - (1 - t) * (1 - t)); // 缓出曲线
+    gfx.lineTo(px + x, py + y);
+  }
+  // 右侧直边（微向内）
+  gfx.lineTo(px + pw - sideInset, py + botShoulder);
+  // 右下：到底部尖拱（右肩 → 底尖）
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = pw - sideInset - (pw / 2 - sideInset) * t;
+    const baseY = botShoulder;
+    const archDown = botArchH * (t * t); // 加速向下到尖点
+    gfx.lineTo(px + x, py + baseY + archDown);
+  }
+  // 底尖 → 左底肩
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = pw / 2 - (pw / 2 - sideInset) * t;
+    const baseY = botShoulder + botArchH;
+    const archUp = -botArchH * (1 - (1 - t) * (1 - t)); // 缓出向上
+    gfx.lineTo(px + x, py + baseY + archUp);
+  }
+  // 左边直边（微向内收）
+  gfx.lineTo(px + sideInset, py + topArchH);
+  // 左上：回到顶部拱尖（左肩 → 顶拱）
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = sideInset + (pw / 2 - sideInset) * (1 - t);
+    const y = topArchH - topArchH * ((1 - t) * (1 - t)); // 缓入向上到尖
+    gfx.lineTo(px + x, py + y);
+  }
+  gfx.closePath();
+}
+
+// 辅助：填充正八边形
+function this_fillOctagon(gfx: Phaser.GameObjects.Graphics, cx: number, cy: number, r: number) {
+  gfx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const ang = (i / 8) * Math.PI * 2 - Math.PI / 8;
+    const px = cx + Math.cos(ang) * r;
+    const py = cy + Math.sin(ang) * r;
+    if (i === 0) gfx.moveTo(px, py);
+    else gfx.lineTo(px, py);
+  }
+  gfx.closePath();
+}
+
+// =============================================
+// 增强版：不规则多边形石砖砌圆形平台（英雄详情页）
+// =============================================
+export function drawStonePlatformTiled(
+  scene: Phaser.Scene,
+  x: number, y: number, r: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+
+  // 阴影
+  g.fillStyle(0x000000, 0.3);
+  g.fillEllipse(x + 5, y + r * 0.42 + 5, r * 2.15, r * 0.48);
+
+  // 三层圆盘（从上往下越来越大）
+  const layers = [
+    { yOff: -r * 0.22, rx: r * 1.3, ry: r * 0.28, light: 0xc8b898, mid: 0xb8a888, dark: 0x8a7a5a },
+    { yOff:  r * 0.06, rx: r * 1.7, ry: r * 0.34, light: 0xb8a888, mid: 0xa89878, dark: 0x7a6a4a },
+    { yOff:  r * 0.32, rx: r * 2.0, ry: r * 0.42, light: 0xa89878, mid: 0x9a8a6a, dark: 0x6a5a3a },
+  ];
+  layers.forEach((L, li) => {
+    // 圆盘阴影边
+    g.fillStyle(L.dark, 1);
+    g.fillEllipse(x, y + L.yOff + L.ry * 0.2, L.rx, L.ry);
+    // 圆盘主色
+    g.fillStyle(L.mid, 1);
+    g.fillEllipse(x, y + L.yOff, L.rx, L.ry);
+    // 圆盘亮面
+    g.fillStyle(L.light, 0.95);
+    g.fillEllipse(x - L.rx * 0.08, y + L.yOff - L.ry * 0.15, L.rx * 0.88, L.ry * 0.7);
+  });
+
+  // ==== 顶层：不规则多边形石砖纹理（mosaic） ====
+  const tilesTopY = y + layers[0].yOff;
+  const tilesRX = layers[0].rx * 0.96;
+  const tilesRY = layers[0].ry * 0.9;
+
+  // 在椭圆区域内生成不规则多边形砖
+  const seedTiles: { pts: { x: number; y: number }[]; fill: number; edge: number }[] = [];
+
+  // 先做圆心
+  const rows = 5;
+  const cols = 7;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      // 网格中心点（含错位）
+      const rowOff = (row % 2) * (tilesRX / cols);
+      const cx = -tilesRX + rowOff + col * ((tilesRX * 2) / cols) + (tilesRX / cols);
+      const cy = -tilesRY + row * ((tilesRY * 2) / rows) + (tilesRY / rows);
+      // 跳过椭圆外的点
+      const dist = (cx * cx) / (tilesRX * tilesRX) + (cy * cy) / (tilesRY * tilesRY);
+      if (dist > 0.95) continue;
+
+      // 生成不规则六边形（每边随机抖动）
+      const polyR = (tilesRX / cols) * 0.72;
+      const sides = 5 + Math.floor(Math.random() * 3); // 5~7边
+      const pts: { x: number; y: number }[] = [];
+      for (let si = 0; si < sides; si++) {
+        const ang = (si / sides) * Math.PI * 2 + Math.random() * 0.3;
+        const rr = polyR * (0.8 + Math.random() * 0.35);
+        pts.push({
+          x: cx + Math.cos(ang) * rr,
+          y: cy + Math.sin(ang) * rr * 0.75,
+        });
+      }
+      // 砖颜色（3种基调随机）
+      const tone = Math.random();
+      let fill: number, edge: number;
+      if (tone < 0.33) { fill = 0xd8c89e; edge = 0x8a7a58; }
+      else if (tone < 0.66) { fill = 0xc8b888; edge = 0x7a6a48; }
+      else { fill = 0xe0d0a8; edge = 0x9a8a68; }
+      seedTiles.push({ pts, fill, edge });
+    }
+  }
+
+  // 用椭圆裁剪：先画完整遮罩在临时canvas，直接画每个多边形（在椭圆内的话）
+  seedTiles.forEach(tile => {
+    // 检查多边形中心点是否在椭圆内（粗略）
+    const cxD = tile.pts.reduce((s, p) => s + p.x, 0) / tile.pts.length;
+    const cyD = tile.pts.reduce((s, p) => s + p.y, 0) / tile.pts.length;
+    const dist = (cxD * cxD) / (tilesRX * tilesRX) + (cyD * cyD) / (tilesRY * tilesRY);
+    if (dist > 1.02) return;
+
+    // 砖阴影
+    g.fillStyle(0x000000, 0.22);
+    g.beginPath();
+    tile.pts.forEach((p, i) => {
+      const px = x + p.x + 1.5;
+      const py = tilesTopY + p.y + 1.5;
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    });
+    g.closePath();
+    g.fillPath();
+
+    // 砖主色
+    g.fillStyle(tile.fill, 1);
+    g.beginPath();
+    tile.pts.forEach((p, i) => {
+      const px = x + p.x;
+      const py = tilesTopY + p.y;
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    });
+    g.closePath();
+    g.fillPath();
+
+    // 砖高光（上半小弧）
+    g.fillStyle(0xffffff, 0.14);
+    g.beginPath();
+    tile.pts.forEach((p, i) => {
+      const px = x + p.x;
+      const py = tilesTopY + p.y - (Math.abs(p.y) < tilesRY * 0.4 ? 1.5 : 0);
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    });
+    g.closePath();
+    g.fillPath();
+
+    // 砖边
+    g.lineStyle(1.2, tile.edge, 0.85);
+    g.beginPath();
+    tile.pts.forEach((p, i) => {
+      const px = x + p.x;
+      const py = tilesTopY + p.y;
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    });
+    g.closePath();
+    g.strokePath();
+  });
+
+  // 顶层椭圆边（描一圈金边，手动椭圆路径）
+  g.lineStyle(2, CARTOON.hexGold, 0.35);
+  g.beginPath();
+  const eSegs = 40;
+  for (let ei = 0; ei <= eSegs; ei++) {
+    const ea = (ei / eSegs) * Math.PI * 2;
+    const eex = x + Math.cos(ea) * tilesRX;
+    const eey = tilesTopY + Math.sin(ea) * tilesRY;
+    if (ei === 0) g.moveTo(eex, eey);
+    else g.lineTo(eex, eey);
+  }
+  g.strokePath();
+
+  return g;
+}
+
+// 粉色横幅（图鉴分类标题）
+export function drawPinkBanner(
+  scene: Phaser.Scene,
+  x: number, y: number, w: number, text: string,
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const g = scene.add.graphics();
+  const h = 36;
+
+  // 飘带尾
+  const tail = 10;
+  g.fillStyle(CARTOON.bannerPinkDark, 1);
+  g.beginPath();
+  g.moveTo(-w / 2, 0);
+  g.lineTo(w / 2, 0);
+  g.lineTo(w / 2 - tail, h / 2);
+  g.lineTo(w / 2, h);
+  g.lineTo(-w / 2, h);
+  g.lineTo(-w / 2 + tail, h / 2);
+  g.closePath();
+  g.fillPath();
+
+  g.fillStyle(CARTOON.bannerPink, 1);
+  g.beginPath();
+  g.moveTo(-w / 2 + 2, 4);
+  g.lineTo(w / 2 - 2, 4);
+  g.lineTo(w / 2 - tail - 1, h / 2);
+  g.lineTo(w / 2 - 2, h - 4);
+  g.lineTo(-w / 2 + 2, h - 4);
+  g.lineTo(-w / 2 + tail + 1, h / 2);
+  g.closePath();
+  g.fillPath();
+
+  // 高光
+  g.fillStyle(0xffffff, 0.3);
+  g.beginPath();
+  g.moveTo(-w / 2 + 4, 6);
+  g.lineTo(w / 2 - 4, 6);
+  g.lineTo(w / 2 - tail - 2, h / 2 - 4);
+  g.lineTo(-w / 2 + tail + 2, h / 2 - 4);
+  g.closePath();
+  g.fillPath();
+
+  c.add(g);
+
+  const t = scene.add.text(0, h / 2, text, {
+    fontFamily: DS.font.display,
+    fontSize: '22px',
+    color: '#ffffff',
+    fontStyle: 'bold',
+    stroke: '#8a2050',
+    strokeThickness: 2,
+  }).setOrigin(0.5);
+  c.add(t);
+  return c;
+}

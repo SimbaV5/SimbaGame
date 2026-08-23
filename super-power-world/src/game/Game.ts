@@ -46,6 +46,7 @@ export function createGame(parent: HTMLElement) {
     banner: false,
   };
   const g = new Phaser.Game(config);
+  (window as any).__PHASER_GAME__ = g;
   bus.on(BusEvents.OpenUI, (name: string) => {
     const scene = g.scene.getScene(name);
     if (scene && !scene.scene.isActive()) {

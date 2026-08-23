@@ -71,12 +71,28 @@ export class BattleScene extends Phaser.Scene {
 
   private drawStageBackdrop() {
     const g = this.add.graphics();
-    g.fillGradientStyle(
-      hex2n(DS.color.bgDeep), hex2n(DS.color.bgDeep),
-      hex2n(DS.color.bgWarm), hex2n(DS.color.magentaDeep),
-      1,
-    );
-    g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    // 全屏分层渐变替代 fillGradientStyle（战斗背景：深紫到深蓝）
+    const batL = 10;
+    const batTop = [0x10, 0x00, 0x20];
+    const batMid = [0x30, 0x08, 0x50];
+    const batBot = [0x50, 0x20, 0x60];
+    for (let i = 0; i < batL; i++) {
+      const t = i / batL;
+      let r, gg, b;
+      if (t < 0.5) {
+        const tt = t / 0.5;
+        r = Math.floor(batTop[0] + (batMid[0] - batTop[0]) * tt);
+        gg = Math.floor(batTop[1] + (batMid[1] - batTop[1]) * tt);
+        b = Math.floor(batTop[2] + (batMid[2] - batTop[2]) * tt);
+      } else {
+        const tt = (t - 0.5) / 0.5;
+        r = Math.floor(batMid[0] + (batBot[0] - batMid[0]) * tt);
+        gg = Math.floor(batMid[1] + (batBot[1] - batMid[1]) * tt);
+        b = Math.floor(batMid[2] + (batBot[2] - batMid[2]) * tt);
+      }
+      g.fillStyle((r << 16) | (gg << 8) | b, 1);
+      g.fillRect(0, (GAME_HEIGHT / batL) * i, GAME_WIDTH, (GAME_HEIGHT / batL) + 1);
+    }
 
     drawStarStuddedBackground(this, GAME_WIDTH, GAME_HEIGHT, 0.00035).setAlpha(0.6);
 

@@ -28,12 +28,28 @@ export class GachaScene extends Phaser.Scene {
 
   private drawStageBackdrop() {
     const g = this.add.graphics();
-    g.fillGradientStyle(
-      hex2n(DS.color.bgDeep), hex2n(DS.color.bgDeep),
-      hex2n(DS.color.magentaDeep), hex2n(DS.color.bgWarm),
-      1,
-    );
-    g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    // 全屏分层渐变替代 fillGradientStyle（抽卡背景：深紫到品红）
+    const gachL = 10;
+    const gachTop = [0x10, 0x00, 0x20];
+    const gachMid = [0x40, 0x10, 0x60];
+    const gachBot = [0x60, 0x20, 0x40];
+    for (let i = 0; i < gachL; i++) {
+      const t = i / gachL;
+      let r, gg, b;
+      if (t < 0.5) {
+        const tt = t / 0.5;
+        r = Math.floor(gachTop[0] + (gachMid[0] - gachTop[0]) * tt);
+        gg = Math.floor(gachTop[1] + (gachMid[1] - gachTop[1]) * tt);
+        b = Math.floor(gachTop[2] + (gachMid[2] - gachTop[2]) * tt);
+      } else {
+        const tt = (t - 0.5) / 0.5;
+        r = Math.floor(gachMid[0] + (gachBot[0] - gachMid[0]) * tt);
+        gg = Math.floor(gachMid[1] + (gachBot[1] - gachMid[1]) * tt);
+        b = Math.floor(gachMid[2] + (gachBot[2] - gachMid[2]) * tt);
+      }
+      g.fillStyle((r << 16) | (gg << 8) | b, 1);
+      g.fillRect(0, (GAME_HEIGHT / gachL) * i, GAME_WIDTH, (GAME_HEIGHT / gachL) + 1);
+    }
 
     const beam = this.add.graphics();
     const colors = [C.magenta, C.gold, C.violet, C.cyan];
@@ -149,7 +165,7 @@ export class GachaScene extends Phaser.Scene {
         });
       }
 
-      const hit = this.add.rectangle(x + w / 2, y + 85, w, 170, 0x00000000).setInteractive();
+      const hit = this.add.rectangle(x + w / 2, y + 85, w, 170, 0xffffff, 0).setInteractive();
       hit.on('pointerdown', () => {
         this.currentPool = p.type;
         this.scene.restart();

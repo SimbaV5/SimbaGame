@@ -75,7 +75,7 @@ export function button(
   bg.fillRoundedRect(2, 4, w, h, radius);
   bg.fillStyle(fill, options.disabled ? 0.45 : 1);
   bg.fillRoundedRect(0, 0, w, h, radius);
-  bg.fillGradientStyle(0xffffff, 0xffffff, fill, fill, options.disabled ? 0.15 : 0.35);
+  bg.fillStyle(0xffffff, options.disabled ? 0.15 : 0.35);
   bg.fillRoundedRect(2, 2, w - 4, h * 0.45, radius - 2);
   bg.lineStyle(DS.stroke.medium, edge, options.disabled ? 0.5 : 1);
   bg.strokeRoundedRect(0, 0, w, h, radius);
@@ -229,7 +229,7 @@ export function tabBar(
       tabG.fillStyle(C.goldBright, 1);
       tabG.fillCircle(x + w / 2, GAME_HEIGHT - h - 6, 3);
     }
-    const bg = scene.add.rectangle(x + w / 2, GAME_HEIGHT - h / 2, w, h, 0x00000000).setOrigin(0.5).setInteractive();
+    const bg = scene.add.rectangle(x + w / 2, GAME_HEIGHT - h / 2, w, h, 0xffffff, 0).setOrigin(0.5).setInteractive();
     bg.on('pointerdown', () => {
       audio.playSfx('click');
       t.onClick();
@@ -277,7 +277,7 @@ export function toast(
   g.fillRoundedRect(-w / 2 + 4, 0 + 6, w, 64, 32);
   g.fillStyle(color, 1);
   g.fillRoundedRect(-w / 2, 0, w, 64, 32);
-  g.fillGradientStyle(0xffffff, 0xffffff, color, color, 0.3);
+  g.fillStyle(0xffffff, 0.3);
   g.fillRoundedRect(-w / 2 + 4, 4, w - 8, 24, 28);
   g.lineStyle(2, 0xffffff, 0.7);
   g.strokeRoundedRect(-w / 2, 0, w, 64, 32);
@@ -316,7 +316,7 @@ export function resourceChip(
   g.fillRoundedRect(2, 4, w, 44, 22);
   g.fillStyle(color, 1);
   g.fillRoundedRect(0, 0, w, 44, 22);
-  g.fillGradientStyle(0xffffff, 0xffffff, color, color, 0.3);
+  g.fillStyle(0xffffff, 0.3);
   g.fillRoundedRect(2, 2, w - 4, 18, 20);
   g.lineStyle(2, 0xffffff, 0.45);
   g.strokeRoundedRect(0, 0, w, 44, 22);
@@ -359,7 +359,7 @@ export function giantGemResource(
   g.fillRoundedRect(2, 6, w, h, 30);
   g.fillStyle(color, 1);
   g.fillRoundedRect(0, 0, w, h, 30);
-  g.fillGradientStyle(0xffffff, 0xffffff, color, color, 0.35);
+  g.fillStyle(0xffffff, 0.35);
   g.fillRoundedRect(2, 2, w - 4, 24, 28);
   g.lineStyle(2.5, edge, 1);
   g.strokeRoundedRect(0, 0, w, h, 30);

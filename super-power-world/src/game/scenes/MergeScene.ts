@@ -85,7 +85,7 @@ export class MergeScene extends Phaser.Scene {
         this.add.text(x + cellW / 2, y + cellH / 2, '+', { fontSize: '48px', color: '#4a4a8a' }).setOrigin(0.5);
       }
       const idx = i;
-      const bg = this.add.rectangle(x + cellW / 2, y + cellH / 2, cellW, cellH, 0x00000000).setInteractive();
+      const bg = this.add.rectangle(x + cellW / 2, y + cellH / 2, cellW, cellH, 0xffffff, 0).setInteractive();
       bg.on('pointerdown', () => this.onCellTap(idx));
     }
   }
