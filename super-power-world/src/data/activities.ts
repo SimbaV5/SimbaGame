@@ -107,6 +107,30 @@ export const ACTIVITIES: ActivityDef[] = [
     type: 'boss_rush',
     description: '挑战强力 BOSS 获得稀有装备',
   },
+  {
+    id: 'act_anniversary',
+    dayStart: 1,
+    dayEnd: 14,
+    name: '周年庆典',
+    type: 'limited_task',
+    description: '限时周年活动，多重福利等你拿',
+  },
+  {
+    id: 'act_lantern',
+    dayStart: 1,
+    dayEnd: 7,
+    name: '灯火辉煌',
+    type: 'limited_task',
+    description: '限时节日活动',
+  },
+  {
+    id: 'act_dig',
+    dayStart: 1,
+    dayEnd: 30,
+    name: '幸运挖宝',
+    type: 'limited_task',
+    description: '完成挖宝挑战，获得道具奖励',
+  },
 ];
 
 export const ITEM_NAMES: Record<string, string> = {
@@ -116,4 +140,7 @@ export const ITEM_NAMES: Record<string, string> = {
   ticket_up: 'UP 召唤券',
   stamina_small: '体力药水',
   equip_random: '随机装备',
+  awaken_stone: '觉醒石',
+  holy_random: '随机圣物',
+  faction_medal: '阵营徽章',
 };

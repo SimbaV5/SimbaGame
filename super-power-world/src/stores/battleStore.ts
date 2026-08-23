@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import type { BattleLog, HeroBase, HeroInstance, StageDef, BattleEffect, BattleLogKind } from '@/types';
 import { HERO_MAP } from '@/data/heroes';
 import { SKILL_MAP } from '@/data/skills';
-import { computeStats } from '@/core/formulas';
+import { computeStats, counterBonus, POSITION_DMG_BONUS } from '@/core/formulas';
 import { clamp, randInt, chance } from '@/core/rng';
 import { useHeroStore } from './heroStore';
 import { usePlayerStore } from './playerStore';
@@ -137,7 +137,7 @@ export const useBattleStore = defineStore('battle', {
       const pool = front.length ? front : enemies;
       return pool[Math.floor(Math.random() * pool.length)];
     },
-    applyDamage(attacker: BattleUnit, target: BattleUnit, amount: number, isCrit = false) {
+    applyDamage(attacker: BattleUnit, target: BattleUnit, amount: number, isCrit = false, extra = '') {
       let dmg = Math.max(1, Math.round(amount));
       if (target.shield > 0) {
         const absorbed = Math.min(target.shield, dmg);
@@ -146,7 +146,8 @@ export const useBattleStore = defineStore('battle', {
       }
       if (dmg <= 0) return 0;
       target.hp -= dmg;
-      this.pushLog('damage', `${attacker.name} 对 ${target.name} 造成 ${dmg} 伤害${isCrit ? '（暴击！）' : ''}`, attacker.uid, target.uid, dmg);
+      audio.playSfx('battle_hit');
+      this.pushLog('damage', `${attacker.name} 对 ${target.name} 造成 ${dmg} 伤害${isCrit ? '（暴击！）' : ''}${extra}`, attacker.uid, target.uid, dmg);
       if (target.hp <= 0) {
         target.alive = false;
         target.hp = 0;
@@ -209,9 +210,19 @@ export const useBattleStore = defineStore('battle', {
         : randInt(eff.value.min * 100, eff.value.max * 100) / 100;
       switch (eff.type) {
         case 'damage': {
+          const attackerHero = HERO_MAP[attacker.heroId];
+          const targetHero = HERO_MAP[target.heroId];
+          const counter = attackerHero && targetHero ? counterBonus(attackerHero.faction, targetHero.faction) : 0;
+          const posKey: 'front' | 'mid' | 'back' = attacker.pos >= 3 ? 'back' : attacker.pos >= 2 ? 'mid' : 'front';
+          const posBonus = POSITION_DMG_BONUS[posKey];
           const raw = attacker.atk * (scaling.atk ?? 1) + (scaling.hp ?? 0) * attacker.maxHp * 0.05 + (scaling.def ?? 0) * attacker.def * 0.5;
+          let dmg = raw * (1 + counter) * posBonus;
+          const defMitigation = target.def - attacker.atk * 0.2;
+          dmg *= 100 / (100 + Math.max(0, defMitigation));
           const isCrit = chance(attacker.crit / 100);
-          this.applyDamage(attacker, target, raw, isCrit);
+          if (isCrit) dmg *= 1.5;
+          const extra = counter > 0 ? '（克制！）' : '';
+          this.applyDamage(attacker, target, dmg, isCrit, extra);
           break;
         }
         case 'heal': {

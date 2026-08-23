@@ -150,6 +150,34 @@ export interface DebugOptions {
   acceleratedTime: boolean;
 }
 
+export type FactionCounter = Record<HeroFaction, HeroFaction>;
+export type DamageType = 'normal' | 'crit' | 'armor_break' | 'true_dmg' | 'anomaly' | 'pure';
+export type Position = 'front' | 'mid' | 'back';
+
+export interface FactionSynergy {
+  count: number;
+  bonus: { hp?: number; atk?: number; def?: number; crit?: number; speed?: number };
+  description: string;
+}
+
+export interface AwakenBonus {
+  level: number;
+  name: string;
+  description: string;
+  effects: { stat?: string; value?: number; type?: 'buff' | 'unlock_skill' | 'special'; skillId?: string }[];
+}
+
+export interface HolyItem {
+  id: string;
+  name: string;
+  slot: 'weapon' | 'armor' | 'helmet' | 'boots' | 'ring' | 'amulet';
+  rarity: HeroRarity;
+  faction?: HeroFaction;
+  stats: { hp?: number; atk?: number; def?: number; crit?: number; dodge?: number; breakArmor?: number; anomalyDmg?: number };
+  description: string;
+  setBonus?: { count: number; stat: string; value: number }[];
+}
+
 export interface PlayerSave {
   uid: string;
   nickname: string;
@@ -183,4 +211,14 @@ export interface PlayerSave {
   totalPlayTime: number;
   createdAt: number;
   schemaVersion: number;
+  bossContribution?: number;
+  equippedTitle?: string;
+  ownedTitles?: string[];
+  guild?: { name: string; level: number; members: number; contribution: number };
+  towerHighest?: number;
+  arenaRank?: number;
+  codexClaimed10?: boolean;
+  codexClaimed30?: boolean;
+  codexClaimed60?: boolean;
+  codexClaimed100?: boolean;
 }

@@ -118,6 +118,22 @@ export const useHeroStore = defineStore('hero', {
       bus.emit(BusEvents.HeroUpdated, h);
       return true;
     },
+    awaken(uid: string): boolean {
+      const h = this.heroes.find((x) => x.uid === uid);
+      if (!h) return false;
+      if (h.awaken >= 5) return false;
+      const cost = { gold: (h.awaken + 1) * 5000, soul: (h.awaken + 1) * 10, awakenStone: (h.awaken + 1) * 5 };
+      const player = usePlayerStore();
+      if (player.save.gold < cost.gold || player.save.soul < cost.soul) return false;
+      const stones = player.save.inventory['awaken_stone'] || 0;
+      if (stones < cost.awakenStone) return false;
+      player.addCurrency('gold', -cost.gold);
+      player.addCurrency('soul', -cost.soul);
+      player.save.inventory['awaken_stone'] = stones - cost.awakenStone;
+      h.awaken += 1;
+      bus.emit(BusEvents.HeroUpdated, h);
+      return true;
+    },
     equip(uid: string, slot: string, equipId: string | null) {
       const h = this.heroes.find((x) => x.uid === uid);
       if (!h) return;

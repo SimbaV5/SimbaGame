@@ -1,15 +1,45 @@
 import type { HeroBase, HeroClass, HeroElement, HeroFaction, HeroRarity } from '@/types';
 
-const NAMES_M = ['曜', '曦', '凌', '玄', '曜', '渊', '祁', '司', '凛', '枫', '寒', '墨', '言', '祁', '砚', '砚', '霄', '鸿', '鳞', '烛', '昀', '岚', '叙', '尘', '霁'];
-const NAMES_F = ['璃', '萤', '笙', '颜', '若', '微', '清', '弦', '蕊', '柒', '晴', '瑶', '歆', '黛', '宛', '绮', '霏', '沁', '苒', '昭', '湄', '毓', '冉', '杳', '漪'];
+// 本地化中文名 - 按职业 × 元素 × 阵营 风格命名
+const NAMES_BY_CLASS = {
+  tank: [
+    '玄武', '磐石', '苍岩', '铁壁', '坚盾', '渊盾', '圣盾', '永壁', '凛盾', '银卫',
+    '神铸', '镇岳', '天柱', '海礁', '烛龙', '岳神', '铁卫', '玄武', '苍盾', '岩心',
+  ],
+  warrior: [
+    '龙煞', '屠龙者', '狂战', '剑魔', '剑圣', '炽刃', '雷斧', '裂空', '赤焰', '黑锋',
+    '霜牙', '龙裔', '武姬', '血刃', '魔镰', '幽镰', '裂魂', '霸者', '弑神', '赤霄',
+  ],
+  assassin: [
+    '影刃', '虚空游神', '暗刺', '放逐之影', '幽鬼', '紫电', '暗夜魔女', '环刃贵族', '刺客', '虚空',
+    '界', '暗影', '无影', '灵刃', '暗翼', '虚空之刃', '鬼面', '潜行', '幻刺', '幽刺',
+  ],
+  ranger: [
+    '弓魂', '圣锋游侠', '银箭', '鹰眼', '风语', '羽弦', '追星', '炽羽', '苍羽', '寒羽',
+    '玉弓', '游侠', '风行者', '神射', '破晓', '轻羽', '苍牙', '光翎', '金翎', '银翎',
+  ],
+  mage: [
+    '永恒古树', '铃兰鹿灵', '万花', '法汞', '冰魂', '雷法师', '噬魂之弓', '虚空虫皇', '炎灵', '雷鸣',
+    '霜语', '时光', '占星', '织梦', '渊语', '魔导', '奥术', '雷火', '炽炎', '冰心',
+  ],
+  support: [
+    '怜悯树灵', '祈愿', '圣光', '萤火', '铃兰', '吟游诗人', '净魂', '垂枝之镰', '圣者', '灵祈',
+    '治愈', '圣使', '光辉', '回春', '祈愿者', '怜悯', '神恩', '圣泉', '微光', '永夜皇后',
+  ],
+};
 
-const SURNAMES = ['司', '赫', '凛', '凌', '霓', '凤', '白', '夜', '青', '墨', '霜', '玄', '云', '幽', '霜', '羽', '龙', '白', '雪', '银', '金', '紫', '蓝', '红', '赤'];
+const SURNAMES_BY_FACTION = {
+  celestial: ['天', '圣', '光', '炽', '曜', '曦', '云', '宙'],
+  abyss: ['渊', '暗', '幽', '冥', '夜', '魇', '噬', '虚'],
+  mecha: ['机', '械', '铁', '钢', '钛', '铜', '合', '芯'],
+  beast: ['狼', '虎', '熊', '鹰', '豹', '龙', '凤', '麒'],
+  spirit: ['灵', '幻', '仙', '精', '魂', '魄', '星', '月'],
+  human: ['龙', '王', '侯', '萧', '林', '司', '白', '凌'],
+};
 
-function pickName(classType: HeroClass, idx: number) {
-  const surname = SURNAMES[idx % SURNAMES.length];
-  const given = classType === 'support' || classType === 'mage'
-    ? NAMES_F[idx % NAMES_F.length]
-    : NAMES_M[idx % NAMES_M.length];
+function pickName(classType: HeroClass, faction: HeroFaction, idx: number) {
+  const surname = SURNAMES_BY_FACTION[faction][idx % SURNAMES_BY_FACTION[faction].length];
+  const given = NAMES_BY_CLASS[classType][idx % NAMES_BY_CLASS[classType].length];
   return surname + given;
 }
 
@@ -62,11 +92,11 @@ function buildHero(idx: number, classType: HeroClass, element: HeroElement, fact
 
   const id = `h_${classType}_${element}_${faction}_${idx}`;
   const skills = CLASS_SKILLS[classType];
-  const desc = `${cnElement(element)}系${cnFaction(faction)}的${cnClass(classType)}，拥有${rarity} 级别战力。`;
+  const desc = `${cnElement(element)}系${cnFaction(faction)}的${cnClass(classType)}，拥有${rarity} 级战力。觉醒后可解锁终极技能。`;
 
   return {
     id,
-    name: pickName(classType, idx),
+    name: pickName(classType, faction, idx),
     class: classType,
     element,
     faction,
@@ -93,12 +123,10 @@ function cnFaction(f: HeroFaction) {
 export const HEROES: HeroBase[] = (() => {
   const list: HeroBase[] = [];
   let idx = 0;
-  // 为每个 class × element × faction 组合创建多个英雄，确保达到 100+
   for (const c of CLASSES) {
     for (const e of ELEMENTS) {
       for (const f of FACTIONS) {
-        // 每个组合创建 3-5 个英雄
-        const count = 3 + ((idx % 3));
+        const count = 4;
         for (let k = 0; k < count; k++) {
           list.push(buildHero(idx, c, e, f));
           idx++;
@@ -106,27 +134,14 @@ export const HEROES: HeroBase[] = (() => {
       }
     }
   }
-  // 兜底：再补 12 个，确保 100+
-  while (list.length < 120) {
-    const c = CLASSES[list.length % CLASSES.length];
-    const e = ELEMENTS[(list.length * 3) % ELEMENTS.length];
-    const f = FACTIONS[(list.length * 7) % FACTIONS.length];
-    list.push(buildHero(list.length, c, e, f));
-  }
   return list;
 })();
 
 export const HERO_MAP: Record<string, HeroBase> = Object.fromEntries(HEROES.map((h) => [h.id, h]));
 
-export function classLabel(c: HeroClass) {
-  return cnClass(c);
-}
-export function elementLabel(e: HeroElement) {
-  return cnElement(e);
-}
-export function factionLabel(f: HeroFaction) {
-  return cnFaction(f);
-}
+export function classLabel(c: HeroClass) { return cnClass(c); }
+export function elementLabel(e: HeroElement) { return cnElement(e); }
+export function factionLabel(f: HeroFaction) { return cnFaction(f); }
 export function rarityColor(r: HeroRarity) {
   return {
     N: '#9ca3af',

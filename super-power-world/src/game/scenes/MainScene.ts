@@ -7,7 +7,6 @@ import { HERO_MAP } from '@/data/heroes';
 import { getHeroPortrait } from '@/core/assetGen';
 
 export class MainScene extends Phaser.Scene {
-  private headerTimer?: Phaser.Time.TimerEvent;
   private bgStars: Phaser.GameObjects.Text[] = [];
   private bgOrbs: Phaser.GameObjects.Arc[] = [];
   private currencyTexts: { [k: string]: Phaser.GameObjects.Text } = {};
@@ -23,23 +22,20 @@ export class MainScene extends Phaser.Scene {
     tabBar(this, [
       { name: '主页', onClick: () => this.scene.restart(), active: true },
       { name: '英雄', onClick: () => this.scene.start('HeroScene') },
-      { name: '合成', onClick: () => this.scene.start('MergeScene') },
-      { name: '战斗', onClick: () => this.scene.start('StageScene') },
+      { name: '冒险', onClick: () => this.scene.start('StageScene') },
+      { name: '召唤', onClick: () => this.scene.start('GachaScene') },
       { name: '更多', onClick: () => this.openMore() },
     ]);
     this.events.on('shutdown', () => {
-      this.headerTimer?.remove();
       this.bgStars.forEach((s) => s.destroy());
       this.bgOrbs.forEach((o) => o.destroy());
     });
   }
 
   private drawAnimatedBackground() {
-    // 渐变背景
     const g = this.add.graphics();
     g.fillGradientStyle(0x1a1a2e, 0x1a1a2e, 0x2a1a4e, 0x2a1a4e, 1);
     g.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    // 大光球（背景氛围）
     for (let i = 0; i < 3; i++) {
       const orb = this.add.circle(
         Phaser.Math.Between(100, GAME_WIDTH - 100),
@@ -58,7 +54,6 @@ export class MainScene extends Phaser.Scene {
         repeat: -1,
       });
     }
-    // 闪烁小星
     for (let i = 0; i < 40; i++) {
       const x = Phaser.Math.Between(0, GAME_WIDTH);
       const y = Phaser.Math.Between(0, GAME_HEIGHT);
@@ -88,14 +83,14 @@ export class MainScene extends Phaser.Scene {
     g.fillRoundedRect(x, y, w, h, 18);
     g.lineStyle(2, 0x4a4a8a, 1);
     g.strokeRoundedRect(x, y, w, h, 18);
-    // 玩家头像装饰
     const avatar = this.add.circle(x + 60, y + 50, 38, 0xc084fc);
     this.tweens.add({ targets: avatar, scaleX: 1.05, scaleY: 1.05, duration: 1200, yoyo: true, repeat: -1 });
     this.add.text(x + 60, y + 50, player.save.nickname.slice(0, 2), { fontSize: '24px', color: '#fff', fontStyle: 'bold' }).setOrigin(0.5);
     this.add.text(x + 120, y + 30, `${player.save.nickname}`, { fontSize: '28px', color: '#fff', fontStyle: 'bold' });
-    this.add.text(x + 120, y + 62, `Lv.${player.save.level}  ·  VIP ${player.save.vipLevel}`, { fontSize: '18px', color: '#fbbf24' });
+    const equippedTitle = (player.save as any).equippedTitle || 't_novice';
+    const titleName = equippedTitle === 't_novice' ? '初入超能' : '挑战者';
+    this.add.text(x + 120, y + 62, `Lv.${player.save.level}  ·  ${titleName}`, { fontSize: '18px', color: '#fbbf24' });
 
-    // 资源行
     const res = [
       { name: '金币', value: player.save.gold, color: '#fbbf24' },
       { name: '钻石', value: player.save.gem, color: '#6ad1ff' },
@@ -110,15 +105,14 @@ export class MainScene extends Phaser.Scene {
   }
 
   private drawHud() {
-    const hero = useHeroStore();
-    const slot = hero.heroes[0];
+    const hero = useHeroStore().heroes;
+    const slot = hero[0];
     if (!slot) return;
     const portrait = getHeroPortrait(HERO_MAP[slot.heroId]);
     const key = 'h_portrait_' + slot.uid;
     if (!this.textures.exists(key)) this.textures.addCanvas(key, portrait);
     const sprite = this.add.image(GAME_WIDTH - 100, 100, key);
     sprite.setDisplaySize(140, 140);
-    // 旋转入场
     sprite.setAlpha(0);
     sprite.setScale(0.3);
     sprite.setRotation(Math.PI);
@@ -127,12 +121,10 @@ export class MainScene extends Phaser.Scene {
       alpha: 1, scaleX: 1, scaleY: 1, rotation: 0,
       duration: 600, ease: 'Back.easeOut',
     });
-    // 持续旋转
     this.tweens.add({
       targets: sprite,
       rotation: 0.05, duration: 2000, yoyo: true, repeat: -1,
     });
-    // 装饰圆环
     const ring = this.add.circle(GAME_WIDTH - 100, 100, 75, 0xfbbf24, 0).setStrokeStyle(2, 0xfbbf24, 0.6);
     this.tweens.add({ targets: ring, scaleX: 1.1, scaleY: 1.1, alpha: 0.3, duration: 1500, yoyo: true, repeat: -1 });
   }
@@ -140,12 +132,12 @@ export class MainScene extends Phaser.Scene {
   private drawMain() {
     const mainY = 240;
     const items = [
-      { name: '召唤', desc: '前往抽卡', color: 0xa78bfa, onClick: () => this.scene.start('GachaScene') },
-      { name: '关卡', desc: '推图闯关', color: 0x10b981, onClick: () => this.scene.start('StageScene') },
+      { name: '召唤', desc: '抽卡大厅', color: 0xa78bfa, onClick: () => this.scene.start('GachaScene') },
+      { name: '关卡', desc: '主线推图', color: 0x10b981, onClick: () => this.scene.start('StageScene') },
       { name: '英雄', desc: '管理队伍', color: 0xfbbf24, onClick: () => this.scene.start('HeroScene') },
       { name: '合成', desc: '合并升级', color: 0x6ad1ff, onClick: () => this.scene.start('MergeScene') },
-      { name: '商城', desc: '购买资源', color: 0xf97316, onClick: () => this.scene.start('ShopScene') },
-      { name: '活动', desc: '每日奖励', color: 0xef4444, onClick: () => this.scene.start('ActivityScene') },
+      { name: '试炼', desc: '爬塔挑战', color: 0xf97316, onClick: () => this.scene.start('TrialTowerScene') },
+      { name: '竞技', desc: '天梯对战', color: 0xef4444, onClick: () => this.scene.start('ArenaScene') },
     ];
     const cols = 3;
     const cellW = (GAME_WIDTH - 36) / cols;
@@ -156,7 +148,6 @@ export class MainScene extends Phaser.Scene {
       const btn = button(this, x, y, cellW, cellH, it.name, it.onClick, {
         color: it.color, fontSize: 32, radius: 16, textColor: '#fff',
       });
-      // 入场动画
       btn.setAlpha(0);
       btn.setScale(0.5);
       this.tweens.add({
@@ -167,17 +158,44 @@ export class MainScene extends Phaser.Scene {
       this.add.text(x + cellW / 2, y + 110, it.desc, {
         fontSize: '18px', color: '#ffffffcc',
       }).setOrigin(0.5);
-      // 持续发光
       this.tweens.add({
         targets: btn,
         scaleX: 1.02, scaleY: 1.02, duration: 1200 + i * 100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
         delay: 1000 + i * 80,
       });
     });
+
+    // 第二排
+    const secondY = mainY + (Math.ceil(items.length / cols)) * (cellH + 12);
+    const items2 = [
+      { name: '公会', desc: '异兽讨伐', color: 0x10b981, onClick: () => this.scene.start('GuildScene') },
+      { name: '世界BOSS', desc: '虚空之龙', color: 0xef4444, onClick: () => this.scene.start('WorldBossScene') },
+      { name: '商城', desc: '购买资源', color: 0xc084fc, onClick: () => this.scene.start('ShopScene') },
+      { name: '活动', desc: '每日福利', color: 0xf97316, onClick: () => this.scene.start('ActivityScene') },
+      { name: '图鉴', desc: '收集奖励', color: 0x6ad1ff, onClick: () => this.scene.start('CodexScene') },
+      { name: '资料', desc: '称号成就', color: 0xa78bfa, onClick: () => this.scene.start('ProfileScene') },
+    ];
+    items2.forEach((it, i) => {
+      const x = 12 + (i % cols) * (cellW + 6);
+      const y = secondY + Math.floor(i / cols) * (cellH + 12);
+      const btn = button(this, x, y, cellW, 110, it.name, it.onClick, {
+        color: it.color, fontSize: 24, radius: 14, textColor: '#fff',
+      });
+      btn.setAlpha(0);
+      btn.setScale(0.5);
+      this.tweens.add({
+        targets: btn,
+        alpha: 1, scaleX: 1, scaleY: 1,
+        duration: 500, delay: 600 + i * 60, ease: 'Back.easeOut',
+      });
+      this.add.text(x + cellW / 2, y + 70, it.desc, {
+        fontSize: '14px', color: '#ffffffcc',
+      }).setOrigin(0.5);
+    });
   }
 
   private openMore() {
-    // 不做处理，更多入口在 Tab 中
+    // 不做处理，更多入口在主页 12 个按钮里
   }
 
   update() {
