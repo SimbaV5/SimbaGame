@@ -41,6 +41,9 @@ export class BootScene extends Phaser.Scene {
     // —— Chibi 主城角色立绘 ——
     this.load.image('chibi_cat_archer', 'assets/chibi/chibi_cat_archer.jpg');
 
+    // —— 主城横版大背景（AI 生成） ——
+    this.load.image('main_city_bg', 'assets/maps/main_city_bg.jpg');
+
     // 加载失败时保持静默（fallback 到矢量/emoji）
     this.load.on('loaderror', () => { /* noop */ });
   }

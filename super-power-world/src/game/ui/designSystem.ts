@@ -1458,8 +1458,36 @@ export function drawHexHeroCard(
 export function drawMainCityBackground(
   scene: Phaser.Scene,
   w: number, h: number,
-): Phaser.GameObjects.Graphics {
+): Phaser.GameObjects.Container {
+  const container = scene.add.container(0, 0);
   const g = scene.add.graphics();
+  container.add(g);
+
+  // ========== 0. AI 生成主城背景大图（最底层） ==========
+  if (scene.textures.exists('main_city_bg')) {
+    const bgImg = scene.add.image(w / 2, h / 2, 'main_city_bg');
+    // 拉伸覆盖整屏（保留比例，盖满）
+    const tex = scene.textures.get('main_city_bg');
+    const srcImg = tex.getSourceImage();
+    const imgW = srcImg ? srcImg.width : 720;
+    const imgH = srcImg ? srcImg.height : 1280;
+    const scale = Math.max(w / imgW, h / imgH);
+    bgImg.setScale(scale);
+    bgImg.setDepth(-100);
+    container.add(bgImg);
+    // 顶部轻微暗化（让顶部状态栏更易读）
+    const topShade = scene.add.graphics();
+    topShade.fillStyle(0x000000, 0.18);
+    topShade.fillRect(0, 0, w, 140);
+    topShade.setDepth(-99);
+    container.add(topShade);
+    // 底部暗化（让底部 TabBar 突出）
+    const botShade = scene.add.graphics();
+    botShade.fillStyle(0x000000, 0.22);
+    botShade.fillRect(0, h - 160, w, 160);
+    botShade.setDepth(-99);
+    container.add(botShade);
+  }
 
   // ========== 1. 明亮天空（上45%） ==========
   // 不用 fillGradientStyle 兼容问题，用分层渐变模拟
@@ -2113,7 +2141,9 @@ export function drawMainCityBackground(
   drawRoadTorches(g, roadPts, h);
   drawSignPosts(g, w, h);
 
-  return g;
+  // 把 graphics 也加入容器
+  container.add(g);
+  return container;
 }
 
 function drawWindmillOnG(g: Phaser.GameObjects.Graphics, x: number, y: number, s = 1) {
