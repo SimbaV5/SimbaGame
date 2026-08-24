@@ -18,9 +18,14 @@ import {
 import { HERO_MAP } from '@/data/heroes';
 import { useHeroStore } from '@/stores/heroStore';
 import { getHeroPortrait } from '@/core/assetGen';
+import { STAGES, STAGE_MAP } from '@/data/stages';
+import { usePlayerStore } from '@/stores/playerStore';
+import { useBattleStore } from '@/stores/battleStore';
 
 export class StageScene extends Phaser.Scene {
   private currentStage = 2; // 当前是第2关
+  private currentChapter = 1;
+  private chapterLocked = [false, true, true, true, true];
 
   constructor() { super('StageScene'); }
 
@@ -218,6 +223,25 @@ export class StageScene extends Phaser.Scene {
       drawStageFlag(this, p.x, p.y, stageNum, {
         locked: isLocked, cleared: isCleared, current: isCurrent, stars,
       }).setScrollFactor(1);
+
+      // 透明命中矩形（覆盖旗子视觉区域）
+      const hit = this.add.rectangle(p.x, p.y - 10, 80, 90, 0xffffff, 0)
+        .setScrollFactor(1)
+        .setInteractive({ useHandCursor: true });
+      hit.on('pointerover', () => {
+        if (!isLocked) this.input.setDefaultCursor('pointer');
+      });
+      hit.on('pointerout', () => this.input.setDefaultCursor('default'));
+      hit.on('pointerdown', () => {
+        if (isLocked) {
+          this.showToast(`第 ${stageNum} 关尚未解锁`);
+          audio.playSfx?.('deny');
+          return;
+        }
+        audio.playSfx?.('stage_start');
+        this.startStage(stageNum);
+      });
+
       if (isCurrent) {
         // 手指指引
         const hand = this.add.text(p.x + 60, p.y - 20, '👆', { fontSize: '52px' }).setOrigin(0.5).setScrollFactor(1);
@@ -227,6 +251,43 @@ export class StageScene extends Phaser.Scene {
         });
       }
     });
+  }
+
+  private startStage(stageNum: number) {
+    const player = usePlayerStore();
+    const battle = useBattleStore();
+    // 关卡 1-12 对应章节 1 的第 stageNum 个关卡（即 STAGES 数组的 stageNum-1 索引）
+    const stage = STAGES[stageNum - 1];
+    if (!stage) {
+      this.showToast('关卡数据缺失');
+      return;
+    }
+    if (player.save.formation.slots.filter(Boolean).length === 0) {
+      this.showToast('请先到「英雄」界面编队');
+      audio.playSfx?.('deny');
+      return;
+    }
+    battle.init(stage, player.save.formation.slots);
+    this.scene.start('BattleScene');
+  }
+
+  private showToast(text: string) {
+    const bg = this.add.graphics();
+    const w = Math.min(GAME_WIDTH - 40, text.length * 22 + 36);
+    bg.fillStyle(0x000000, 0.7);
+    bg.fillRoundedRect(GAME_WIDTH / 2 - w / 2, 60, w, 44, 10);
+    bg.lineStyle(2, 0xffd76a, 0.85);
+    bg.strokeRoundedRect(GAME_WIDTH / 2 - w / 2, 60, w, 44, 10);
+    bg.setDepth(200).setScrollFactor(0);
+    const t = this.add.text(GAME_WIDTH / 2, 82, text, {
+      fontFamily: DS.font.display,
+      fontSize: '18px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,0,0,0.8)',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(201).setScrollFactor(0);
+    this.time.delayedCall(1500, () => { bg.destroy(); t.destroy(); audio.playSfx?.('toast'); });
   }
 
   private drawUnlockTags() {
@@ -443,6 +504,23 @@ export class StageScene extends Phaser.Scene {
         stroke: 'rgba(0,30,60,0.7)',
         strokeThickness: 2,
       }).setOrigin(0.5).setScrollFactor(0);
+
+      // 章节切换点击区
+      const tabHit = this.add.rectangle(cx, cy, tabsW - 4, 100, 0xffffff, 0)
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: !t.locked });
+      tabHit.on('pointerover', () => { if (!t.locked) this.input.setDefaultCursor('pointer'); });
+      tabHit.on('pointerout', () => this.input.setDefaultCursor('default'));
+      tabHit.on('pointerdown', () => {
+        if (t.locked) {
+          this.showToast(`「${t.name}」尚未解锁`);
+          audio.playSfx?.('deny');
+          return;
+        }
+        if (t.active) return;
+        audio.playSfx?.('click');
+        this.switchChapter(i);
+      });
     });
 
     // 返回按钮（左上）
@@ -475,10 +553,10 @@ export class StageScene extends Phaser.Scene {
 
     // 最下方的奖励按钮（30/30/12/16，对应步数奖励）
     const bonus = [
-      { idx: 4, val: 30, color: 0x5cb3ea, icon: '🔵' },
-      { idx: 8, val: 30, color: 0x5cb3ea, icon: '🔵' },
-      { idx: 12, val: 12, color: 0xb06fe0, icon: '🎁' },
-      { idx: 16, val: 16, color: 0xc09030, icon: '🔭' },
+      { idx: 4, val: 30, color: 0x5cb3ea, icon: '🔵', kind: 'gold' as const },
+      { idx: 8, val: 30, color: 0x5cb3ea, icon: '🔵', kind: 'gold' as const },
+      { idx: 12, val: 12, color: 0xb06fe0, icon: '🎁', kind: 'gem' as const },
+      { idx: 16, val: 16, color: 0xc09030, icon: '🔭', kind: 'ticket' as const },
     ];
     const barY = GAME_HEIGHT - 260;
     // 进度条
@@ -513,6 +591,42 @@ export class StageScene extends Phaser.Scene {
         stroke: 'rgba(0,0,0,0.6)',
         strokeThickness: 2,
       }).setOrigin(0.5).setScrollFactor(0);
+
+      // 奖励领取点击区
+      const bonusHit = this.add.rectangle(bx, barY + 22, 80, 50, 0xffffff, 0)
+        .setScrollFactor(0)
+        .setInteractive({ useHandCursor: true });
+      bonusHit.on('pointerover', () => this.input.setDefaultCursor('pointer'));
+      bonusHit.on('pointerout', () => this.input.setDefaultCursor('default'));
+      bonusHit.on('pointerdown', () => {
+        this.claimBonus(b.idx, b.kind, b.val);
+      });
     });
+  }
+
+  private switchChapter(chapterIndex: number) {
+    this.currentChapter = chapterIndex + 1;
+    this.currentStage = 1;
+    this.showToast(`已切换到第 ${this.currentChapter} 章`);
+    // 重新创建场景（简单做法：start 自身）
+    this.scene.restart();
+  }
+
+  private claimBonus(milestone: number, kind: 'gold' | 'gem' | 'ticket', amount: number) {
+    const player = usePlayerStore();
+    if (this.currentStage < milestone) {
+      this.showToast(`通关至第 ${milestone} 关后可领取`);
+      audio.playSfx?.('deny');
+      return;
+    }
+    if (kind === 'gold') player.addCurrency('gold', amount);
+    else if (kind === 'gem') player.addCurrency('gem', amount);
+    else {
+      // 召唤券存在 save.tickets.standard 上，单独处理
+      player.save.tickets.standard = (player.save.tickets.standard ?? 0) + amount;
+      player.dirty = true;
+    }
+    this.showToast(`领取成功：${kind === 'gold' ? '金币' : kind === 'gem' ? '钻石' : '召唤券'} × ${amount}`);
+    audio.playSfx?.('coin');
   }
 }

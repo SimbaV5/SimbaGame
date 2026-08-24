@@ -2,7 +2,7 @@
 // 音频系统 (Web Audio API 程序化生成音效，无外部素材)
 // =========================================================
 
-type SfxKind = 'click' | 'merge' | 'gacha' | 'battle_hit' | 'battle_skill' | 'victory' | 'defeat' | 'levelup' | 'purchase' | 'coin';
+type SfxKind = 'click' | 'merge' | 'gacha' | 'battle_hit' | 'battle_skill' | 'victory' | 'defeat' | 'levelup' | 'purchase' | 'coin' | 'deny' | 'toast' | 'stage_start';
 
 class AudioSystem {
   private ctx: AudioContext | null = null;
@@ -99,6 +99,19 @@ class AudioSystem {
         g.linearRampToValueAtTime(0.6, now + 0.01);
         g.exponentialRampToValueAtTime(0.001, now + 0.2);
         break;
+      case 'deny':
+        g.linearRampToValueAtTime(0.5, now + 0.005);
+        g.exponentialRampToValueAtTime(0.001, now + 0.15);
+        break;
+      case 'toast':
+        g.linearRampToValueAtTime(0.4, now + 0.01);
+        g.exponentialRampToValueAtTime(0.001, now + 0.18);
+        break;
+      case 'stage_start':
+        g.linearRampToValueAtTime(0.7, now + 0.02);
+        g.linearRampToValueAtTime(1, now + 0.1);
+        g.exponentialRampToValueAtTime(0.001, now + 0.3);
+        break;
     }
   }
 
@@ -135,14 +148,25 @@ class AudioSystem {
       case 'coin':
         osc.type = 'square'; osc.frequency.setValueAtTime(1200, osc.context.currentTime);
         osc.frequency.exponentialRampToValueAtTime(800, osc.context.currentTime + 0.15); break;
+      case 'deny':
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(180, osc.context.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, osc.context.currentTime + 0.15); break;
+      case 'toast':
+        osc.type = 'sine'; osc.frequency.setValueAtTime(660, osc.context.currentTime);
+        osc.frequency.setValueAtTime(880, osc.context.currentTime + 0.06); break;
+      case 'stage_start':
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(440, osc.context.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, osc.context.currentTime + 0.3); break;
     }
   }
 
   private durationOf(kind: SfxKind): number {
-    return ({
+    const map: Record<SfxKind, number> = {
       click: 0.1, merge: 0.25, gacha: 0.7, battle_hit: 0.15, battle_skill: 0.5,
       victory: 0.7, defeat: 0.6, levelup: 0.4, purchase: 0.2, coin: 0.2,
-    } as Record<SfxKind, number>)[kind];
+      deny: 0.15, toast: 0.18, stage_start: 0.3,
+    };
+    return map[kind] ?? 0.2;
   }
 
   startBgm() {

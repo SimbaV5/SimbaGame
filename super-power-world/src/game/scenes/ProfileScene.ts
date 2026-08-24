@@ -308,6 +308,91 @@ export class ProfileScene extends Phaser.Scene {
         },
       },
     );
+
+    // ===== 底部快捷操作区 =====
+    this.drawQuickActions(tY + 170);
+  }
+
+  private drawQuickActions(startY: number) {
+    const player = usePlayerStore();
+
+    // 区段标题
+    const titleBg = this.add.graphics();
+    titleBg.fillStyle(0x000000, 0.35);
+    titleBg.fillRoundedRect(16, startY, GAME_WIDTH - 32, 36, 8);
+    titleBg.fillStyle(CARTOON.hexGold, 0.15);
+    titleBg.fillRect(20, startY + 2, 4, 32);
+    this.add.text(34, startY + 18, '⚙  快捷操作', {
+      fontFamily: DS.font.display,
+      fontSize: '18px',
+      color: '#ffd76a',
+      fontStyle: 'bold',
+    }).setOrigin(0, 0.5);
+
+    // 4 个快捷按钮
+    const actions = [
+      { label: '清空编队', glyph: '🛡', variant: 'gold' as const, onClick: () => {
+        player.save.formation.slots = [null, null, null, null, null, null];
+        player.dirty = true;
+        audio.playSfx?.('click');
+        this.scene.restart();
+      }},
+      { label: '领取邮件', glyph: '✉', variant: 'blue' as const, onClick: () => {
+        audio.playSfx?.('deny');
+        this.showToast('当前没有可领取的邮件');
+      }},
+      { label: '存档导出', glyph: '💾', variant: 'gold' as const, onClick: () => {
+        try {
+          const data = JSON.stringify(player.save);
+          const blob = new Blob([data], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `spw_save_${Date.now()}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          audio.playSfx?.('levelup');
+          this.showToast('存档已导出');
+        } catch {
+          this.showToast('导出失败');
+        }
+      }},
+      { label: '回到主城', glyph: '🏰', variant: 'blue' as const, onClick: () => {
+        audio.playSfx?.('click');
+        this.scene.start('MainScene');
+      }},
+    ];
+
+    const gridY = startY + 56;
+    const cellW = (GAME_WIDTH - 24 - 12) / 2;
+    const cellH = 70;
+    actions.forEach((a, i) => {
+      const cx = 12 + (i % 2) * (cellW + 12);
+      const cy = gridY + Math.floor(i / 2) * (cellH + 10);
+      drawPolishedButton(
+        this, cx, cy, cellW, cellH, `${a.glyph}  ${a.label}`,
+        { variant: a.variant, fontSize: '20px', onClick: a.onClick },
+      );
+    });
+  }
+
+  private showToast(text: string) {
+    const bg = this.add.graphics();
+    const w = Math.min(GAME_WIDTH - 40, text.length * 22 + 36);
+    bg.fillStyle(0x000000, 0.7);
+    bg.fillRoundedRect(GAME_WIDTH / 2 - w / 2, 60, w, 44, 10);
+    bg.lineStyle(2, 0xffd76a, 0.85);
+    bg.strokeRoundedRect(GAME_WIDTH / 2 - w / 2, 60, w, 44, 10);
+    bg.setDepth(200);
+    const t = this.add.text(GAME_WIDTH / 2, 82, text, {
+      fontFamily: DS.font.display,
+      fontSize: '18px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,0,0,0.8)',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(201);
+    this.time.delayedCall(1500, () => { bg.destroy(); t.destroy(); });
   }
 
   private drawTitles() {

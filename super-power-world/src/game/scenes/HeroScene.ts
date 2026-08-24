@@ -211,7 +211,12 @@ export class HeroScene extends Phaser.Scene {
     // 稀有度分组（从高到低）
     const groups: { title: string; heroes: typeof HEROES; rarityKey: any }[] = [];
     const byRarity = new Map<string, typeof HEROES>();
-    HEROES.forEach(h => {
+    const ownedIds = new Set(useHeroStore().heroes.map(h => h.heroId));
+    // 子 Tab 过滤：「英雄」= 只显示已拥有；「图鉴」= 全部
+    const sourcePool = this.subTab === 'hero'
+      ? HEROES.filter(h => ownedIds.has(h.id))
+      : HEROES;
+    sourcePool.forEach(h => {
       const k = h.rarity;
       if (!byRarity.has(k)) byRarity.set(k, [] as any);
       (byRarity.get(k) as any).push(h);
@@ -233,7 +238,6 @@ export class HeroScene extends Phaser.Scene {
     });
 
     let currentY = 200;
-    const ownedIds = new Set(useHeroStore().heroes.map(h => h.heroId));
 
     groups.forEach(group => {
       // 过滤阵营
