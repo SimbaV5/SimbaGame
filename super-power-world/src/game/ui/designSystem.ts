@@ -1965,39 +1965,143 @@ export function drawMainCityBackground(
   // 增强城堡：周围城墙+防御塔
   drawCastleWallsOnG(g, castleX, castleY - 10, w, h);
 
-  // ========== 12. 前景草地（填满下方） ==========
-  const grassStart = h * 0.58;
-  const grassCols = 8;
-  for (let i = 0; i < grassCols; i++) {
-    const t = i / grassCols;
-    const r = Math.floor(0x7a + (0x3f - 0x7a) * t);
-    const gC = Math.floor(0xc9 + (0x8a - 0xc9) * t);
-    const b = Math.floor(0x4a + (0x25 - 0x4a) * t);
-    const col = (r << 16) | (gC << 8) | b;
-    g.fillStyle(col, 1);
-    g.fillRect(0, grassStart + ((h - grassStart) / grassCols) * i, w, (h - grassStart) / grassCols + 1);
+  // ========== V2 光影增强：云投影 + 明暗分层 + 暗角 ==========
+  // 12.1 云在地面/山坡上的投影（淡灰色椭圆，分布于 hill1/hill2 区域）
+  const cloudShadowPositions = [
+    [w * 0.20, h * 0.44, 68, 14],
+    [w * 0.48, h * 0.42, 58, 12],
+    [w * 0.72, h * 0.45, 72, 16],
+    [w * 0.88, h * 0.50, 56, 12],
+    [w * 0.12, h * 0.60, 88, 18],
+    [w * 0.36, h * 0.66, 76, 16],
+    [w * 0.60, h * 0.62, 66, 14],
+    [w * 0.82, h * 0.68, 72, 16],
+  ];
+  cloudShadowPositions.forEach(([cx, cy, crx, cry]) => {
+    g.fillStyle(0x000000, 0.08);
+    g.fillEllipse(cx, cy, crx, cry);
+    g.fillStyle(0x000000, 0.04);
+    g.fillEllipse(cx + 6, cy + 4, crx * 0.7, cry * 0.6);
+  });
+
+  // 12.2 山/丘的"向阳面vs背阳面"明暗分块（右上太阳，所以左下偏暗）
+  // 远山暗化（左侧）
+  g.fillStyle(0x000000, 0.07);
+  g.beginPath();
+  g.moveTo(0, h * 0.30);
+  g.lineTo(w * 0.45, h * 0.30);
+  g.lineTo(0, h * 0.38);
+  g.closePath();
+  g.fillPath();
+  // 中丘阴影（左下暗区）
+  g.fillStyle(0x000000, 0.08);
+  g.beginPath();
+  g.moveTo(0, hillY1 + 20);
+  g.lineTo(w * 0.35, hillY1 + 20);
+  for (let i = 0; i <= 4; i++) {
+    const px = (w / 8) * i;
+    const py = hillY1 - Math.sin(i * 0.8 + 2) * 26 - (i % 3) * 12;
+    g.lineTo(px, py);
+  }
+  g.closePath();
+  g.fillPath();
+  // 前台大丘阴影
+  g.fillStyle(0x000000, 0.10);
+  g.beginPath();
+  g.moveTo(0, hillY2 + 30);
+  g.lineTo(w * 0.4, hillY2 + 30);
+  for (let i = 0; i <= 4; i++) {
+    const px = (w / 8) * i;
+    const py = hillY2 - Math.sin(i * 0.9 + 1.3) * 34 - (i % 2) * 18;
+    g.lineTo(px, py);
+  }
+  g.closePath();
+  g.fillPath();
+  // 前台大丘高光（右上向阳）
+  g.fillStyle(0xffffff, 0.05);
+  g.beginPath();
+  g.moveTo(w * 0.55, hillY2 + 30);
+  g.lineTo(w, hillY2 + 30);
+  for (let i = 8; i >= 4; i--) {
+    const px = (w / 8) * i;
+    const py = hillY2 - 10 - Math.sin(i * 0.9 + 1.3) * 30 - (i % 2) * 16;
+    g.lineTo(px, py);
+  }
+  g.closePath();
+  g.fillPath();
+
+  // 12.3 草丛簇（细密短草，成片分布）
+  for (let ci = 0; ci < 80; ci++) {
+    const bx = Math.random() * w;
+    const by = h * 0.63 + Math.random() * (h * 0.33);
+    const bladeCount = 4 + Math.floor(Math.random() * 4);
+    for (let bb = 0; bb < bladeCount; bb++) {
+      const bx2 = bx + (bb - bladeCount / 2) * 2 + (Math.random() - 0.5);
+      const hh = 4 + Math.random() * 5;
+      const curl = (Math.random() - 0.5) * 2;
+      g.lineStyle(1.2, Math.random() > 0.5 ? 0x3a8a32 : 0x4aaa42, 0.9);
+      g.beginPath();
+      g.moveTo(bx2, by);
+      // 6段贝塞尔向上+微弯
+      for (let st = 1; st <= 6; st++) {
+        const tt = st / 6;
+        g.lineTo(bx2 + curl * tt * 2, by - hh * tt);
+      }
+      g.strokePath();
+    }
   }
 
-  // 草地斑块（亮色点缀）
-  for (let i = 0; i < 40; i++) {
-    const px = Math.random() * w;
-    const py = h * 0.62 + Math.random() * (h * 0.35);
-    const pr = 18 + Math.random() * 60;
-    g.fillStyle(Math.random() > 0.5 ? 0x5aad32 : 0x7ac94a, 0.28);
-    g.fillEllipse(px, py, pr, pr * 0.55);
+  // 12.4 路边零散金币（模拟原版路径奖励）
+  for (let ci = 0; ci < 12; ci++) {
+    const idx = 6 + ci * 3;
+    if (idx >= roadPts.length) break;
+    const pt = roadPts[idx];
+    const offX = (ci % 2 ? -26 : 26) + (Math.random() - 0.5) * 4;
+    const gy = pt.y + 4;
+    // 金币阴影
+    g.fillStyle(0x000000, 0.22);
+    g.fillEllipse(pt.x + offX + 1, gy + 4, 6, 2.2);
+    // 金币外圈
+    g.fillStyle(0x7a5a10, 1);
+    g.fillCircle(pt.x + offX, gy, 5.2);
+    g.fillStyle(0xd4a030, 1);
+    g.fillCircle(pt.x + offX, gy, 4.4);
+    g.fillStyle(0xf4d060, 1);
+    g.fillCircle(pt.x + offX, gy, 3.4);
+    g.fillStyle(0xffffff, 0.7);
+    g.fillCircle(pt.x + offX - 1.4, gy - 1.4, 1.2);
+    // ¢ 或者星符号
+    g.lineStyle(1, 0x7a5a10, 1);
+    g.beginPath();
+    g.moveTo(pt.x + offX, gy - 1.8);
+    g.lineTo(pt.x + offX, gy + 1.8);
+    g.strokePath();
   }
 
-  // 小白花/蒲公英
-  for (let i = 0; i < 22; i++) {
-    const fx = 20 + Math.random() * (w - 40);
-    const fy = h * 0.65 + Math.random() * (h * 0.3);
-    const fcol = [0xffffff, 0xfff0a0, 0xff8aa0, 0xb0e8ff][Math.floor(Math.random() * 4)];
-    g.fillStyle(0x206025, 1);
-    g.fillRect(fx, fy, 1, 5);
-    g.fillStyle(fcol, 1);
-    g.fillCircle(fx, fy, 2.5);
-    g.fillStyle(0xffffff, 0.8);
-    g.fillCircle(fx - 0.5, fy - 0.5, 0.8);
+  // 12.5 太阳方向的柔和光晕覆盖整个右上天空（白色+淡黄，增加通透感）
+  for (let rr = 0; rr < 10; rr++) {
+    g.fillStyle(0xffffff, (0.04 - rr * 0.003));
+    g.fillCircle(sunX - 30, sunY + 10, 220 - rr * 14);
+  }
+  for (let rr = 0; rr < 6; rr++) {
+    g.fillStyle(0xffe9a0, (0.025 - rr * 0.003));
+    g.fillCircle(sunX, sunY, 260 - rr * 22);
+  }
+
+  // 12.6 画面四角暗角（vignette，增加"戏剧感"聚焦）
+  const vignetteLay = 6;
+  for (let v = 0; v < vignetteLay; v++) {
+    const t = v / vignetteLay;
+    g.fillStyle(0x000000, 0.04 + t * 0.04);
+    const vx = 8 + v * 12, vy = 8 + v * 14, vw = w - 16 - v * 24, vh = h - 16 - v * 28;
+    // 上暗条
+    g.fillRect(0, 0, w, vy);
+    // 下暗条
+    g.fillRect(0, h - vy, w, vy);
+    // 左
+    g.fillRect(0, vy, vx, vh);
+    // 右
+    g.fillRect(w - vx, vy, vx, vh);
   }
 
   return g;
@@ -2131,12 +2235,513 @@ function drawCastleWallsOnG(g: Phaser.GameObjects.Graphics, castleX: number, cas
 }
 
 // =============================================
-// 浮动侧边图标（带红点提示）
+// 精致矢量图标（代替 emoji，风格贴合原版金属/宝石质感）
+// 所有函数在给定 Graphics 上局部坐标系 (0..1) 中绘制，调用方负责平移/缩放
+// =============================================
+
+// 通用工具：将一组 0..1 坐标点按 scale 缩放并平移 (ox,oy)，fill 或 stroke
+function polyPath(g: Phaser.GameObjects.Graphics, pts: [number, number][], ox: number, oy: number, s: number) {
+  g.beginPath();
+  g.moveTo(ox + pts[0][0] * s, oy + pts[0][1] * s);
+  for (let i = 1; i < pts.length; i++) g.lineTo(ox + pts[i][0] * s, oy + pts[i][1] * s);
+  g.closePath();
+}
+
+/** 宝箱图标：金属带扣+木身 */
+function drawIconChest(g: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number) {
+  const s = size;
+  const ox = cx - s / 2;
+  const oy = cy - s / 2;
+  // 阴影
+  g.fillStyle(0x5a3a12, 1);
+  g.fillRoundedRect(ox + s * 0.06, oy + s * 0.22, s * 0.88, s * 0.7, s * 0.1);
+  // 木身体（深棕→棕分层）
+  g.fillStyle(0x6b3e15, 1); g.fillRoundedRect(ox + s * 0.08, oy + s * 0.34, s * 0.84, s * 0.56, s * 0.08);
+  g.fillStyle(0x8a5420, 1); g.fillRoundedRect(ox + s * 0.1,  oy + s * 0.36, s * 0.8,  s * 0.3,  s * 0.08);
+  // 金属横梁
+  g.fillStyle(0xc89638, 1); g.fillRect(ox + s * 0.08, oy + s * 0.5, s * 0.84, s * 0.08);
+  g.fillStyle(0xfbe18a, 1); g.fillRect(ox + s * 0.08, oy + s * 0.5, s * 0.84, s * 0.02);
+  g.fillStyle(0x7a5a14, 1); g.fillRect(ox + s * 0.08, oy + s * 0.56, s * 0.84, s * 0.02);
+  // 箱子顶盖（弧形）
+  g.fillStyle(0x6b3e15, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.08, oy + s * 0.34);
+  g.lineTo(ox + s * 0.08, oy + s * 0.28);
+  g.arc(ox + s * 0.5, oy + s * 0.28, s * 0.42, Math.PI, 0, false);
+  g.lineTo(ox + s * 0.92, oy + s * 0.34);
+  g.closePath();
+  g.fillPath();
+  g.fillStyle(0x8a5420, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.12, oy + s * 0.33);
+  g.lineTo(ox + s * 0.12, oy + s * 0.29);
+  g.arc(ox + s * 0.5, oy + s * 0.29, s * 0.38, Math.PI, 0, false);
+  g.lineTo(ox + s * 0.88, oy + s * 0.33);
+  g.closePath();
+  g.fillPath();
+  // 金属顶盖箍
+  g.fillStyle(0xc89638, 1);
+  g.fillRect(ox + s * 0.08, oy + s * 0.3, s * 0.84, s * 0.04);
+  g.fillStyle(0xfbe18a, 1);
+  g.fillRect(ox + s * 0.08, oy + s * 0.3, s * 0.84, s * 0.01);
+  // 金属锁扣
+  g.fillStyle(0xc89638, 1); g.fillRect(ox + s * 0.42, oy + s * 0.42, s * 0.16, s * 0.24);
+  g.fillStyle(0xfbe18a, 1); g.fillRect(ox + s * 0.42, oy + s * 0.42, s * 0.16, s * 0.03);
+  g.fillStyle(0x5a3a0a, 1); g.fillRect(ox + s * 0.42, oy + s * 0.63, s * 0.16, s * 0.03);
+  g.fillStyle(0x2a1a0a, 1); g.fillRect(ox + s * 0.47, oy + s * 0.52, s * 0.06, s * 0.08);
+  // 宝石点缀
+  g.fillStyle(0x2ac9a0, 1); g.fillCircle(ox + s * 0.22, oy + s * 0.55, s * 0.04);
+  g.fillStyle(0x6affd0, 0.9); g.fillCircle(ox + s * 0.21, oy + s * 0.54, s * 0.015);
+  g.fillStyle(0x2ac9a0, 1); g.fillCircle(ox + s * 0.78, oy + s * 0.55, s * 0.04);
+  g.fillStyle(0x6affd0, 0.9); g.fillCircle(ox + s * 0.77, oy + s * 0.54, s * 0.015);
+  // 高光
+  g.fillStyle(0xffffff, 0.18);
+  g.fillRoundedRect(ox + s * 0.12, oy + s * 0.36, s * 0.76, s * 0.08, s * 0.04);
+}
+
+/** 信封图标（邮件/邀请） */
+function drawIconEnvelope(g: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number, style: 'mail'|'invite'='mail') {
+  const s = size; const ox = cx - s / 2; const oy = cy - s / 2;
+  // 主体
+  g.fillStyle(0xf3dca0, 1);
+  g.fillRoundedRect(ox + s * 0.08, oy + s * 0.26, s * 0.84, s * 0.58, s * 0.06);
+  g.fillStyle(0xfff4d0, 1);
+  g.fillRoundedRect(ox + s * 0.1, oy + s * 0.28, s * 0.8, s * 0.3, s * 0.04);
+  // 翻盖三角
+  g.fillStyle(style === 'invite' ? 0xd05a3a : 0xe0bc74, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.08, oy + s * 0.26);
+  g.lineTo(ox + s * 0.5, oy + s * 0.6);
+  g.lineTo(ox + s * 0.92, oy + s * 0.26);
+  g.closePath();
+  g.fillPath();
+  // 翻盖边缘高光
+  g.lineStyle(1.5, 0xffffff, 0.4);
+  g.beginPath();
+  g.moveTo(ox + s * 0.08, oy + s * 0.26);
+  g.lineTo(ox + s * 0.5, oy + s * 0.6);
+  g.lineTo(ox + s * 0.92, oy + s * 0.26);
+  g.strokePath();
+  // 邀请：火漆印章
+  if (style === 'invite') {
+    g.fillStyle(0xb02020, 1); g.fillCircle(ox + s * 0.5, oy + s * 0.58, s * 0.13);
+    g.fillStyle(0xe0402a, 1); g.fillCircle(ox + s * 0.495, oy + s * 0.575, s * 0.1);
+    g.fillStyle(0xff8060, 0.7); g.fillCircle(ox + s * 0.47, oy + s * 0.55, s * 0.03);
+    g.fillStyle(0xffffff, 0.9);
+    g.fillCircle(ox + s * 0.5, oy + s * 0.58, s * 0.02);
+    // 印章丝带
+    g.fillStyle(0x701010, 1);
+    g.fillRect(ox + s * 0.36, oy + s * 0.64, s * 0.28, s * 0.04);
+  } else {
+    // 普通邮件：蓝色封扣
+    g.fillStyle(0x1a6ec0, 1); g.fillCircle(ox + s * 0.5, oy + s * 0.58, s * 0.1);
+    g.fillStyle(0x5ab0ff, 1); g.fillCircle(ox + s * 0.495, oy + s * 0.575, s * 0.07);
+    g.lineStyle(2, 0xffffff, 0.8);
+    g.beginPath();
+    g.moveTo(ox + s * 0.46, oy + s * 0.58);
+    g.lineTo(ox + s * 0.5, oy + s * 0.54);
+    g.lineTo(ox + s * 0.55, oy + s * 0.6);
+    g.strokePath();
+  }
+  // 信封边缘
+  g.lineStyle(1.2, 0x8a6a20, 0.7);
+  g.strokeRoundedRect(ox + s * 0.08, oy + s * 0.26, s * 0.84, s * 0.58, s * 0.06);
+}
+
+/** 背包/工具箱（限时/背包） */
+function drawIconBag(g: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number, kind: 'bag'|'kit'='bag') {
+  const s = size; const ox = cx - s / 2; const oy = cy - s / 2;
+  // 包身
+  g.fillStyle(kind === 'bag' ? 0x7a4ec0 : 0x5a6a7a, 1);
+  g.fillRoundedRect(ox + s * 0.14, oy + s * 0.34, s * 0.72, s * 0.54, s * 0.1);
+  g.fillStyle(kind === 'bag' ? 0x9a6ee0 : 0x7a8a9a, 1);
+  g.fillRoundedRect(ox + s * 0.16, oy + s * 0.36, s * 0.68, s * 0.3, s * 0.09);
+  // 翻盖
+  g.fillStyle(kind === 'bag' ? 0x4a2e80 : 0x3a4a5a, 1);
+  g.fillRoundedRect(ox + s * 0.1, oy + s * 0.22, s * 0.8, s * 0.22, s * 0.08);
+  // 金属带
+  g.fillStyle(0xc89638, 1); g.fillRect(ox + s * 0.46, oy + s * 0.26, s * 0.08, s * 0.38);
+  g.fillStyle(0xfbe18a, 1); g.fillRect(ox + s * 0.46, oy + s * 0.26, s * 0.08, s * 0.03);
+  g.fillStyle(0xc89638, 1); g.fillRoundedRect(ox + s * 0.38, oy + s * 0.52, s * 0.24, s * 0.08, s * 0.02);
+  g.fillStyle(0xfbe18a, 1); g.fillRect(ox + s * 0.38, oy + s * 0.52, s * 0.24, s * 0.02);
+  g.fillStyle(0x2a1a0a, 1); g.fillCircle(ox + s * 0.5, oy + s * 0.56, s * 0.02);
+  // 工具箱特定：锤子/齿轮
+  if (kind === 'kit') {
+    g.fillStyle(0xb0b0c0, 1);
+    g.fillRect(ox + s * 0.22, oy + s * 0.66, s * 0.14, s * 0.08);
+    g.fillStyle(0x8a5420, 1);
+    g.fillRect(ox + s * 0.2, oy + s * 0.72, s * 0.18, s * 0.1);
+    // 齿轮
+    g.fillStyle(0xe0d050, 1);
+    g.beginPath();
+    const tcx = ox + s * 0.74, tcy = oy + s * 0.72, r = s * 0.1;
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      g.moveTo(tcx, tcy);
+      g.lineTo(tcx + Math.cos(a) * r * 1.3, tcy + Math.sin(a) * r * 1.3);
+      g.lineTo(tcx + Math.cos(a + Math.PI / 8) * r, tcy + Math.sin(a + Math.PI / 8) * r);
+    }
+    g.closePath();
+    g.fillPath();
+    g.fillStyle(0x5a3a0a, 1); g.fillCircle(tcx, tcy, s * 0.03);
+  } else {
+    // 背包：口袋
+    g.fillStyle(kind === 'bag' ? 0x4a2e80 : 0x3a4a5a, 1);
+    g.fillRoundedRect(ox + s * 0.22, oy + s * 0.66, s * 0.56, s * 0.16, s * 0.04);
+    g.fillStyle(0xffffff, 0.15);
+    g.fillRoundedRect(ox + s * 0.24, oy + s * 0.68, s * 0.52, s * 0.04, s * 0.02);
+  }
+  // 高光
+  g.fillStyle(0xffffff, 0.18);
+  g.fillRoundedRect(ox + s * 0.16, oy + s * 0.24, s * 0.68, s * 0.08, s * 0.04);
+}
+
+/** 世界地图图标 */
+function drawIconMap(g: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number) {
+  const s = size; const ox = cx - s / 2; const oy = cy - s / 2;
+  // 折叠地图纸
+  g.fillStyle(0xd8b878, 1);
+  g.fillRoundedRect(ox + s * 0.08, oy + s * 0.18, s * 0.84, s * 0.7, s * 0.04);
+  g.fillStyle(0xf0dcac, 1);
+  g.fillRoundedRect(ox + s * 0.1, oy + s * 0.2, s * 0.8, s * 0.34, s * 0.03);
+  // 地图折痕
+  g.lineStyle(1, 0x6a4a20, 0.5);
+  g.beginPath();
+  g.moveTo(ox + s * 0.36, oy + s * 0.2); g.lineTo(ox + s * 0.36, oy + s * 0.88);
+  g.moveTo(ox + s * 0.62, oy + s * 0.2); g.lineTo(ox + s * 0.62, oy + s * 0.88);
+  g.strokePath();
+  // 陆地色块（绿岛）
+  g.fillStyle(0x6ab040, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.18, oy + s * 0.4);
+  g.lineTo(ox + s * 0.3,  oy + s * 0.34);
+  g.lineTo(ox + s * 0.34, oy + s * 0.52);
+  g.lineTo(ox + s * 0.2,  oy + s * 0.58);
+  g.closePath();
+  g.fillPath();
+  g.fillStyle(0x5aa030, 0.8);
+  g.fillCircle(ox + s * 0.5, oy + s * 0.5, s * 0.08);
+  g.fillStyle(0x5aa030, 0.8);
+  g.beginPath();
+  g.moveTo(ox + s * 0.68, oy + s * 0.34);
+  g.lineTo(ox + s * 0.84, oy + s * 0.42);
+  g.lineTo(ox + s * 0.78, oy + s * 0.64);
+  g.closePath();
+  g.fillPath();
+  // 海洋
+  g.fillStyle(0x3a8ee6, 0.55);
+  g.fillRect(ox + s * 0.42, oy + s * 0.62, s * 0.14, s * 0.04);
+  g.fillRect(ox + s * 0.14, oy + s * 0.68, s * 0.14, s * 0.04);
+  // 山脉三角
+  g.fillStyle(0x7a5a3a, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.74, oy + s * 0.74);
+  g.lineTo(ox + s * 0.78, oy + s * 0.6);
+  g.lineTo(ox + s * 0.82, oy + s * 0.74);
+  g.closePath();
+  g.fillPath();
+  g.fillStyle(0xffffff, 0.9);
+  g.beginPath();
+  g.moveTo(ox + s * 0.77, oy + s * 0.64);
+  g.lineTo(ox + s * 0.78, oy + s * 0.6);
+  g.lineTo(ox + s * 0.79, oy + s * 0.64);
+  g.closePath();
+  g.fillPath();
+  // 红色图钉
+  g.fillStyle(0xd03030, 1); g.fillCircle(ox + s * 0.5, oy + s * 0.5, s * 0.05);
+  g.fillStyle(0xff7060, 0.9); g.fillCircle(ox + s * 0.49, oy + s * 0.49, s * 0.02);
+  // 罗盘
+  g.fillStyle(0xc89638, 1); g.fillCircle(ox + s * 0.88, oy + s * 0.22, s * 0.07);
+  g.fillStyle(0xfbe18a, 1); g.fillCircle(ox + s * 0.88, oy + s * 0.22, s * 0.05);
+  g.fillStyle(0xd03030, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.88, oy + s * 0.17);
+  g.lineTo(ox + s * 0.86, oy + s * 0.22);
+  g.lineTo(ox + s * 0.88, oy + s * 0.27);
+  g.lineTo(ox + s * 0.9,  oy + s * 0.22);
+  g.closePath();
+  g.fillPath();
+  // 边框阴影
+  g.lineStyle(1.2, 0x6a4a20, 0.7);
+  g.strokeRoundedRect(ox + s * 0.08, oy + s * 0.18, s * 0.84, s * 0.7, s * 0.04);
+}
+
+/** 指南针（任务） */
+function drawIconCompass(g: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number) {
+  const s = size; const ox = cx - s / 2; const oy = cy - s / 2;
+  // 外圈金属
+  g.fillStyle(0x8a6a3a, 1); g.fillCircle(ox + s * 0.5, oy + s * 0.5, s * 0.38);
+  g.fillStyle(0xc89638, 1); g.fillCircle(ox + s * 0.5, oy + s * 0.5, s * 0.34);
+  g.fillStyle(0xfbe18a, 1); g.fillCircle(ox + s * 0.5, oy + s * 0.5, s * 0.3);
+  // 刻度
+  g.fillStyle(0x5a3a0a, 1);
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4;
+    const x1 = ox + s * 0.5 + Math.cos(a) * s * 0.26;
+    const y1 = oy + s * 0.5 + Math.sin(a) * s * 0.26;
+    const x2 = ox + s * 0.5 + Math.cos(a) * s * 0.3;
+    const y2 = oy + s * 0.5 + Math.sin(a) * s * 0.3;
+    g.lineStyle(2, 0x5a3a0a, 1);
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.strokePath();
+  }
+  // 指针（红色N）
+  g.fillStyle(0xd03030, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.5, oy + s * 0.22);
+  g.lineTo(ox + s * 0.44, oy + s * 0.5);
+  g.lineTo(ox + s * 0.5, oy + s * 0.54);
+  g.lineTo(ox + s * 0.56, oy + s * 0.5);
+  g.closePath();
+  g.fillPath();
+  // 指针（银灰色S）
+  g.fillStyle(0xc0c8d0, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.5, oy + s * 0.78);
+  g.lineTo(ox + s * 0.44, oy + s * 0.5);
+  g.lineTo(ox + s * 0.5, oy + s * 0.46);
+  g.lineTo(ox + s * 0.56, oy + s * 0.5);
+  g.closePath();
+  g.fillPath();
+  // 中心铆钉
+  g.fillStyle(0x5a3a0a, 1); g.fillCircle(ox + s * 0.5, oy + s * 0.5, s * 0.05);
+  g.fillStyle(0x8a6a3a, 1); g.fillCircle(ox + s * 0.5, oy + s * 0.5, s * 0.03);
+  // N字母
+  g.fillStyle(0x5a3a0a, 1);
+  const ctx: any = g;
+  if (ctx.scene && ctx.scene.add) {
+    // 留到外部scene.add.text去画
+  }
+}
+
+/** 聊天（对话框+笑脸） */
+function drawIconChat(g: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number, kind: 'chat'|'circle'='chat') {
+  const s = size; const ox = cx - s / 2; const oy = cy - s / 2;
+  if (kind === 'circle') {
+    // 聊天：两个头像圈
+    g.fillStyle(0x3a8ee6, 1); g.fillCircle(ox + s * 0.38, oy + s * 0.4, s * 0.22);
+    g.fillStyle(0x6ab0f0, 1); g.fillCircle(ox + s * 0.38, oy + s * 0.4, s * 0.17);
+    g.fillStyle(0x2ac9a0, 1); g.fillCircle(ox + s * 0.64, oy + s * 0.54, s * 0.22);
+    g.fillStyle(0x6affd0, 1); g.fillCircle(ox + s * 0.64, oy + s * 0.54, s * 0.17);
+    // 脸
+    g.fillStyle(0xffffff, 1);
+    // 眼
+    g.fillCircle(ox + s * 0.34, oy + s * 0.38, s * 0.025);
+    g.fillCircle(ox + s * 0.42, oy + s * 0.38, s * 0.025);
+    g.fillCircle(ox + s * 0.6,  oy + s * 0.52, s * 0.025);
+    g.fillCircle(ox + s * 0.68, oy + s * 0.52, s * 0.025);
+    // 嘴（微笑弧）
+    g.lineStyle(2, 0xffffff, 1);
+    g.beginPath();
+    g.arc(ox + s * 0.38, oy + s * 0.44, s * 0.06, 0.15 * Math.PI, 0.85 * Math.PI, false);
+    g.strokePath();
+    g.beginPath();
+    g.arc(ox + s * 0.64, oy + s * 0.58, s * 0.06, 0.15 * Math.PI, 0.85 * Math.PI, false);
+    g.strokePath();
+  } else {
+    // 对话框气泡
+    g.fillStyle(0x3a8ee6, 1);
+    g.fillRoundedRect(ox + s * 0.12, oy + s * 0.18, s * 0.76, s * 0.54, s * 0.12);
+    g.fillStyle(0xffffff, 1);
+    g.fillRoundedRect(ox + s * 0.15, oy + s * 0.22, s * 0.7, s * 0.46, s * 0.1);
+    // 气泡尾巴
+    g.fillStyle(0x3a8ee6, 1);
+    g.beginPath();
+    g.moveTo(ox + s * 0.28, oy + s * 0.72);
+    g.lineTo(ox + s * 0.22, oy + s * 0.86);
+    g.lineTo(ox + s * 0.4,  oy + s * 0.72);
+    g.closePath();
+    g.fillPath();
+    // 三个点（省略号）
+    g.fillStyle(0x3a8ee6, 1);
+    g.fillCircle(ox + s * 0.32, oy + s * 0.48, s * 0.04);
+    g.fillCircle(ox + s * 0.5,  oy + s * 0.48, s * 0.04);
+    g.fillCircle(ox + s * 0.68, oy + s * 0.48, s * 0.04);
+  }
+}
+
+/** 沙漏（挂机） */
+function drawIconHourglass(g: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number) {
+  const s = size; const ox = cx - s / 2; const oy = cy - s / 2;
+  // 顶部金属条
+  g.fillStyle(0xc89638, 1);
+  g.fillRoundedRect(ox + s * 0.14, oy + s * 0.18, s * 0.72, s * 0.08, s * 0.02);
+  g.fillStyle(0xfbe18a, 1); g.fillRect(ox + s * 0.14, oy + s * 0.18, s * 0.72, s * 0.02);
+  g.fillStyle(0x7a5a14, 1); g.fillRect(ox + s * 0.14, oy + s * 0.24, s * 0.72, s * 0.02);
+  // 底部金属条
+  g.fillStyle(0xc89638, 1);
+  g.fillRoundedRect(ox + s * 0.14, oy + s * 0.74, s * 0.72, s * 0.08, s * 0.02);
+  g.fillStyle(0xfbe18a, 1); g.fillRect(ox + s * 0.14, oy + s * 0.74, s * 0.72, s * 0.02);
+  g.fillStyle(0x7a5a14, 1); g.fillRect(ox + s * 0.14, oy + s * 0.8,  s * 0.72, s * 0.02);
+  // 玻璃沙漏上半
+  g.fillStyle(0xaee6ff, 0.55);
+  g.beginPath();
+  g.moveTo(ox + s * 0.2, oy + s * 0.26);
+  g.lineTo(ox + s * 0.8, oy + s * 0.26);
+  g.lineTo(ox + s * 0.54, oy + s * 0.48);
+  g.closePath();
+  g.fillPath();
+  // 玻璃沙漏下半
+  g.fillStyle(0xaee6ff, 0.45);
+  g.beginPath();
+  g.moveTo(ox + s * 0.46, oy + s * 0.52);
+  g.lineTo(ox + s * 0.8,  oy + s * 0.74);
+  g.lineTo(ox + s * 0.2,  oy + s * 0.74);
+  g.closePath();
+  g.fillPath();
+  // 细颈
+  g.fillStyle(0xc89638, 1);
+  g.fillRect(ox + s * 0.46, oy + s * 0.48, s * 0.08, s * 0.04);
+  // 沙子（上方残留+下方堆积）
+  g.fillStyle(0xe0c070, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.28, oy + s * 0.28);
+  g.lineTo(ox + s * 0.72, oy + s * 0.28);
+  g.lineTo(ox + s * 0.52, oy + s * 0.44);
+  g.closePath();
+  g.fillPath();
+  g.fillStyle(0xe0c070, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.32, oy + s * 0.7);
+  g.lineTo(ox + s * 0.5,  oy + s * 0.56);
+  g.lineTo(ox + s * 0.68, oy + s * 0.7);
+  g.closePath();
+  g.fillPath();
+  // 落下的沙粒
+  g.fillStyle(0xe0c070, 1);
+  g.fillCircle(ox + s * 0.5, oy + s * 0.6, s * 0.01);
+  g.fillCircle(ox + s * 0.5, oy + s * 0.64, s * 0.01);
+  // 边框
+  g.lineStyle(1.2, 0x4a80a0, 0.7);
+  g.beginPath();
+  g.moveTo(ox + s * 0.2, oy + s * 0.26);
+  g.lineTo(ox + s * 0.8, oy + s * 0.26);
+  g.lineTo(ox + s * 0.54, oy + s * 0.48);
+  g.moveTo(ox + s * 0.46, oy + s * 0.52);
+  g.lineTo(ox + s * 0.8, oy + s * 0.74);
+  g.lineTo(ox + s * 0.2, oy + s * 0.74);
+  g.closePath();
+  g.strokePath();
+}
+
+/** 宝石（好友助力 / 时光秘宝，带光芒） */
+function drawIconGem(g: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number, hue: 'pink'|'orange'|'blue'='pink') {
+  const s = size; const ox = cx - s / 2; const oy = cy - s / 2;
+  const hueMap = {
+    pink:   [0xb020a0, 0xe060d0, 0xffa0f0, 0xffffff, 0x4a0040],
+    orange: [0xd06020, 0xf0a040, 0xffd080, 0xffffff, 0x4a1a00],
+    blue:   [0x2060d0, 0x50a0ff, 0x90d0ff, 0xffffff, 0x001a4a],
+  } as const;
+  const [c1, c2, c3, c4, cd] = hueMap[hue];
+  // 八边形宝石
+  const pts: [number, number][] = [
+    [0.3, 0.14], [0.7, 0.14], [0.86, 0.3], [0.86, 0.7],
+    [0.7, 0.86], [0.3, 0.86], [0.14, 0.7], [0.14, 0.3],
+  ];
+  polyPath(g, pts, ox, oy, s);
+  g.fillStyle(c1, 1); g.fillPath();
+  // 内部亮色区
+  const inPts: [number, number][] = [
+    [0.34, 0.2], [0.66, 0.2], [0.8, 0.34], [0.8, 0.6],
+    [0.6, 0.78], [0.34, 0.78], [0.2, 0.6], [0.2, 0.34],
+  ];
+  polyPath(g, inPts, ox, oy, s);
+  g.fillStyle(c2, 1); g.fillPath();
+  // 上半亮面
+  g.fillStyle(c3, 1);
+  g.beginPath();
+  g.moveTo(ox + s * 0.34, oy + s * 0.2);
+  g.lineTo(ox + s * 0.66, oy + s * 0.2);
+  g.lineTo(ox + s * 0.8, oy + s * 0.34);
+  g.lineTo(ox + s * 0.5, oy + s * 0.5);
+  g.lineTo(ox + s * 0.2, oy + s * 0.34);
+  g.closePath();
+  g.fillPath();
+  // 高光三角形
+  g.fillStyle(c4, 0.95);
+  g.beginPath();
+  g.moveTo(ox + s * 0.36, oy + s * 0.24);
+  g.lineTo(ox + s * 0.5, oy + s * 0.28);
+  g.lineTo(ox + s * 0.4, oy + s * 0.42);
+  g.closePath();
+  g.fillPath();
+  // 宝石外发光
+  g.lineStyle(2, c3, 0.7);
+  polyPath(g, pts, ox, oy, s);
+  g.strokePath();
+  g.lineStyle(1, cd, 0.9);
+  polyPath(g, inPts, ox, oy, s);
+  g.strokePath();
+  // 光芒线
+  g.lineStyle(1.2, c3, 0.7);
+  const rays = 4;
+  for (let i = 0; i < rays; i++) {
+    const a = i * Math.PI / 2 + Math.PI / 4;
+    const r1 = s * 0.44, r2 = s * 0.48;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+    g.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+    g.strokePath();
+  }
+}
+
+/** 英雄进阶礼包（宝箱+进阶徽章组合） */
+function drawIconAdvanceKit(g: Phaser.GameObjects.Graphics, cx: number, cy: number, size: number) {
+  const s = size;
+  drawIconChest(g, cx, cy, s);
+  // 左上角进阶徽章
+  const bx = cx - s * 0.42, by = cy - s * 0.4;
+  g.fillStyle(0xd0a030, 1); g.fillCircle(bx, by, s * 0.12);
+  g.fillStyle(0xfbe18a, 1); g.fillCircle(bx, by, s * 0.08);
+  // 箭头向上
+  g.fillStyle(0x4a1a00, 1);
+  g.beginPath();
+  g.moveTo(bx, by - s * 0.04);
+  g.lineTo(bx - s * 0.05, by + s * 0.02);
+  g.lineTo(bx + s * 0.05, by + s * 0.02);
+  g.closePath();
+  g.fillPath();
+  g.fillStyle(0x4a1a00, 1);
+  g.fillRect(bx - s * 0.015, by - s * 0.02, s * 0.03, s * 0.06);
+}
+
+/**
+ * 根据 iconKey 选择绘制哪个精致矢量图标
+ */
+export type IconKey = 'chest' | 'invite' | 'mail' | 'kit' | 'advance' | 'gem_pink' | 'gem_orange' | 'map' | 'compass' | 'bag' | 'chat' | 'circle_chat' | 'hourglass' | 'gift';
+
+export function drawPolishedIcon(
+  scene: Phaser.Scene,
+  iconKey: IconKey,
+  cx: number, cy: number, size: number,
+): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+  // 所有图标函数签名：draw*(g, cx, cy, size)
+  switch (iconKey) {
+    case 'chest': drawIconChest(g, cx, cy, size); break;
+    case 'gift':
+    case 'invite': drawIconEnvelope(g, cx, cy, size, 'invite'); break;
+    case 'mail': drawIconEnvelope(g, cx, cy, size, 'mail'); break;
+    case 'kit': drawIconBag(g, cx, cy, size, 'kit'); break;
+    case 'bag': drawIconBag(g, cx, cy, size, 'bag'); break;
+    case 'advance': drawIconAdvanceKit(g, cx, cy, size); break;
+    case 'gem_pink': drawIconGem(g, cx, cy, size, 'pink'); break;
+    case 'gem_orange': drawIconGem(g, cx, cy, size, 'orange'); break;
+    case 'map': drawIconMap(g, cx, cy, size); break;
+    case 'compass': drawIconCompass(g, cx, cy, size); break;
+    case 'chat': drawIconChat(g, cx, cy, size, 'chat'); break;
+    case 'circle_chat': drawIconChat(g, cx, cy, size, 'circle'); break;
+    case 'hourglass': drawIconHourglass(g, cx, cy, size); break;
+  }
+  return g;
+}
+
+// =============================================
+// 浮动侧边图标（带红点提示） — V2 polished 版
 // =============================================
 export function drawFloatingSideIcon(
   scene: Phaser.Scene,
   x: number, y: number, size: number,
-  iconGlyph: string, label: string,
+  iconGlyphOrKey: string | IconKey, label: string,
   color: number,
   onClick: () => void,
   opts: { badge?: boolean; subLabel?: string } = {},
@@ -2145,33 +2750,68 @@ export function drawFloatingSideIcon(
   const g = scene.add.graphics();
 
   // 阴影
-  g.fillStyle(0x000000, 0.25);
-  g.fillCircle(size / 2 + 2, size / 2 + 4, size / 2);
+  g.fillStyle(0x000000, 0.3);
+  g.fillCircle(size / 2 + 3, size / 2 + 5, size / 2);
 
-  // 蓝色外框（截图风格：蓝色圆角方形）
-  const panelSize = size + 8;
-  g.fillStyle(0x1a5a98, 0.85);
-  g.fillRoundedRect(-2, 0, panelSize, panelSize, 14);
+  // 蓝色外框（多层递进，金属质感）
+  const panelSize = size + 10;
+  // 最深阴影底
+  g.fillStyle(0x0f3a68, 1);
+  g.fillRoundedRect(-2, 2, panelSize, panelSize, 15);
+  // 主框底层
+  g.fillStyle(0x16508f, 1);
+  g.fillRoundedRect(-1, 0, panelSize - 2, panelSize - 2, 14);
+  // 主框上层（主色）
   g.fillStyle(0x2a7fc8, 1);
   g.fillRoundedRect(0, -2, panelSize - 4, panelSize - 4, 13);
-  // 内浅蓝（高光）
-  g.fillStyle(0x6ab8f0, 0.55);
-  g.fillRoundedRect(2, 0, panelSize - 8, (panelSize - 8) * 0.55, 11);
-  // 白色高光边
-  g.lineStyle(1.5, 0xffffff, 0.55);
+  // 内深蓝环
+  g.fillStyle(0x1a68a8, 1);
+  g.fillRoundedRect(2, 0, panelSize - 8, panelSize - 8, 12);
+  // 顶部高光弧
+  g.fillStyle(0x6ab8f0, 0.6);
+  g.fillRoundedRect(3, 1, panelSize - 10, (panelSize - 10) * 0.45, 11);
+  g.fillStyle(0xb8e2ff, 0.4);
+  g.fillRoundedRect(4, 2, panelSize - 12, (panelSize - 12) * 0.22, 10);
+  // 外描边（白边高光+深蓝边两层）
+  g.lineStyle(1, 0x0a2a4a, 0.85);
+  g.strokeRoundedRect(0, -2, panelSize - 4, panelSize - 4, 13);
+  g.lineStyle(1.5, 0xffffff, 0.6);
   g.strokeRoundedRect(2, 0, panelSize - 8, panelSize - 8, 12);
+  // 金属金色角花（左上/右上两点）
+  g.fillStyle(0xf0c24c, 1);
+  g.fillCircle(4, 2, 2); g.fillCircle(panelSize - 6, 2, 2);
+  g.fillStyle(0xf0c24c, 0.8);
+  g.fillRect(3, 0, 3, 1); g.fillRect(panelSize - 7, 0, 3, 1);
 
-  // 图标
-  const icon = scene.add.text(panelSize / 2 - 2, panelSize / 2 - 4, iconGlyph, {
-    fontFamily: DS.font.display,
-    fontSize: `${Math.floor(size * 0.55)}px`,
-    color: '#ffffff',
-    fontStyle: 'bold',
-    stroke: 'rgba(0,40,80,0.5)',
-    strokeThickness: 2,
-  }).setOrigin(0.5);
   c.add(g);
-  c.add(icon);
+
+  // ===== 图标（优先用 polished 矢量图，仅在未匹配到 IconKey 时回退到 emoji） =====
+  const iconKeys: Record<string, IconKey> = {
+    '🎁': 'gift', '📨': 'invite', '✉️': 'mail', '🧰': 'kit',
+    '⚒️': 'advance', '⚙️': 'gem_pink', '💎': 'gem_orange',
+    '🗺️': 'map', '🧭': 'compass', '🎒': 'bag',
+    '💬': 'chat', '😸': 'circle_chat', '⏳': 'hourglass',
+  };
+  const resolvedKey: IconKey | undefined =
+    typeof iconGlyphOrKey === 'string' && (iconGlyphOrKey.length > 4)
+      ? (iconGlyphOrKey as IconKey)
+      : iconKeys[iconGlyphOrKey as string];
+
+  if (resolvedKey) {
+    const ig = drawPolishedIcon(scene, resolvedKey, panelSize / 2 - 2, panelSize / 2 - 2, size * 0.9);
+    c.add(ig);
+  } else {
+    // 回退：emoji
+    const icon = scene.add.text(panelSize / 2 - 2, panelSize / 2 - 4, iconGlyphOrKey as string, {
+      fontFamily: DS.font.display,
+      fontSize: `${Math.floor(size * 0.55)}px`,
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,40,80,0.5)',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    c.add(icon);
+  }
 
   // 文字标签
   const labelT = scene.add.text(panelSize / 2 - 2, panelSize + 14, label, {
@@ -2182,31 +2822,51 @@ export function drawFloatingSideIcon(
     stroke: '#000000',
     strokeThickness: 2,
   }).setOrigin(0.5);
+  // 标签外框（蓝色底条）
+  const labelBg = scene.add.graphics();
+  const labelW = Math.max(64, label.length * 18);
+  labelBg.fillStyle(0x0a2a4a, 0.7);
+  labelBg.fillRoundedRect(panelSize / 2 - 2 - labelW / 2, panelSize + 4, labelW, 22, 11);
+  labelBg.lineStyle(1, 0x6ab8f0, 0.6);
+  labelBg.strokeRoundedRect(panelSize / 2 - 2 - labelW / 2, panelSize + 4, labelW, 22, 11);
+  c.add(labelBg);
+  labelT.setDepth(1);
   c.add(labelT);
 
   if (opts.subLabel) {
-    const sub = scene.add.text(panelSize / 2 - 2, panelSize + 32, opts.subLabel, {
+    const subBg = scene.add.graphics();
+    const sw = Math.max(50, opts.subLabel.length * 14 + 20);
+    subBg.fillStyle(0x7a5a14, 0.9);
+    subBg.fillRoundedRect(panelSize / 2 - 2 - sw / 2, panelSize + 26, sw, 18, 9);
+    subBg.lineStyle(1, 0xf0c24c, 0.9);
+    subBg.strokeRoundedRect(panelSize / 2 - 2 - sw / 2, panelSize + 26, sw, 18, 9);
+    c.add(subBg);
+    const sub = scene.add.text(panelSize / 2 - 2, panelSize + 35, opts.subLabel, {
       fontFamily: DS.font.body,
       fontSize: '13px',
       color: '#ffe08a',
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 2,
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1);
     c.add(sub);
   }
 
-  // 红点提示
+  // 红点提示（多层）
   if (opts.badge) {
     const bd = scene.add.graphics();
+    bd.fillStyle(0x600010, 1);
+    bd.fillCircle(panelSize - 5, 5, 8);
     bd.fillStyle(0xff4a4a, 1);
     bd.fillCircle(panelSize - 6, 4, 7);
+    bd.fillStyle(0xffb0b0, 0.9);
+    bd.fillCircle(panelSize - 8, 2, 2.2);
     bd.lineStyle(1.5, 0xffffff, 1);
     bd.strokeCircle(panelSize - 6, 4, 7);
     c.add(bd);
   }
 
-  c.setSize(panelSize, panelSize + (opts.subLabel ? 40 : 22));
+  c.setSize(panelSize, panelSize + (opts.subLabel ? 46 : 28));
   c.setInteractive(new Phaser.Geom.Rectangle(0, 0, panelSize, panelSize), Phaser.Geom.Rectangle.Contains);
   c.on('pointerdown', () => {
     scene.tweens.add({ targets: c, scaleX: 0.92, scaleY: 0.92, duration: 60, yoyo: true });
@@ -2752,7 +3412,7 @@ export function drawOrnateHeroCard(
   g.moveTo(gx - gemR * 0.6, gy); g.lineTo(gx + gemR * 0.6, gy);
   g.strokePath();
 
-  // ===== 头像 / 未获得遮罩 =====
+  // ===== 头像 / 未获得遮罩（V2：剪影代替粗黑大字） =====
   if (!owned) {
     // 先加边框graphics到容器
     c.add(g);
@@ -2765,25 +3425,132 @@ export function drawOrnateHeroCard(
     c.add(maskG);
     const mask = maskG.createGeometryMask();
 
-    // 深色遮罩（半透明黑）
-    const darkOverlay = scene.add.graphics();
-    this_ornateFramePath(darkOverlay, 10, 10, w - 20, h - 20);
-    darkOverlay.fillPath();
-    darkOverlay.setAlpha(0.72);
-    darkOverlay.setMask(mask);
-    c.add(darkOverlay);
+    // 1) 背景：暗紫色叠层（稀有度色，带微妙分层渐变）
+    const bgDim = scene.add.graphics();
+    this_ornateFramePath(bgDim, 10, 10, w - 20, h - 20);
+    bgDim.fillPath();
+    bgDim.setMask(mask);
+    c.add(bgDim);
+    // 再加一层深紫暗化
+    const bgDarkOverlay = scene.add.graphics();
+    const layerCount = 5;
+    for (let i = 0; i < layerCount; i++) {
+      const t = i / layerCount;
+      // 越往下越深
+      const rr = Math.floor(0x3a - 0x2a * t);
+      const gg = Math.floor(0x1a - 0x10 * t);
+      const bb = Math.floor(0x5a - 0x30 * t);
+      bgDarkOverlay.fillStyle((rr << 16) | (gg << 8) | bb, 0.55 + t * 0.35);
+      const y0 = 10 + ((h - 20) / layerCount) * i;
+      bgDarkOverlay.fillRect(10, y0, w - 20, (h - 20) / layerCount + 1);
+    }
+    bgDarkOverlay.setMask(mask);
+    c.add(bgDarkOverlay);
 
-    // "未获得"大字（居中偏上）
-    const label = scene.add.text(w / 2, h * 0.38, '未获得', {
+    // 2) 人物剪影（居中）：头+肩+披风轮廓，颜色随稀有度调暗
+    const silhouette = scene.add.graphics();
+    const scx = w / 2;
+    const scy = h * 0.44;
+    const scale = Math.min(w, h) * 0.006; // 剪影单位比例
+    // 披风（外轮廓）
+    silhouette.fillStyle(r.bgDark, 0.9);
+    silhouette.beginPath();
+    silhouette.moveTo(scx - w * 0.32, scy + h * 0.18);
+    silhouette.lineTo(scx - w * 0.26, scy - h * 0.02);
+    silhouette.lineTo(scx - w * 0.14, scy - h * 0.12);
+    silhouette.lineTo(scx, scy - h * 0.24);
+    silhouette.lineTo(scx + w * 0.14, scy - h * 0.12);
+    silhouette.lineTo(scx + w * 0.26, scy - h * 0.02);
+    silhouette.lineTo(scx + w * 0.32, scy + h * 0.18);
+    silhouette.closePath();
+    silhouette.fillPath();
+    // 肩铠亮色边
+    silhouette.fillStyle(r.edge, 0.55);
+    silhouette.beginPath();
+    silhouette.moveTo(scx - w * 0.3, scy + h * 0.18);
+    silhouette.lineTo(scx - w * 0.22, scy + h * 0.06);
+    silhouette.lineTo(scx - w * 0.12, scy + h * 0.12);
+    silhouette.lineTo(scx - w * 0.18, scy + h * 0.22);
+    silhouette.closePath();
+    silhouette.fillPath();
+    silhouette.beginPath();
+    silhouette.moveTo(scx + w * 0.3, scy + h * 0.18);
+    silhouette.lineTo(scx + w * 0.22, scy + h * 0.06);
+    silhouette.lineTo(scx + w * 0.12, scy + h * 0.12);
+    silhouette.lineTo(scx + w * 0.18, scy + h * 0.22);
+    silhouette.closePath();
+    silhouette.fillPath();
+    // 头部（圆）
+    silhouette.fillStyle(r.bgInner, 0.95);
+    silhouette.fillCircle(scx, scy - h * 0.16, Math.min(w, h) * 0.09);
+    // 头盔尖顶（可选，根据稀有度装饰，用字符串数组比较避免 TS 收窄问题）
+    silhouette.fillStyle(r.edge, 0.8);
+    const helmetRarities = ['SSR', 'SPLUS', 'UR', 'LR', 'MRC'];
+    if (helmetRarities.includes(rarity as string)) {
+      silhouette.beginPath();
+      silhouette.moveTo(scx - w * 0.06, scy - h * 0.22);
+      silhouette.lineTo(scx, scy - h * 0.34);
+      silhouette.lineTo(scx + w * 0.06, scy - h * 0.22);
+      silhouette.closePath();
+      silhouette.fillPath();
+      // 宝石点缀
+      silhouette.fillStyle(r.glow, 0.9);
+      silhouette.fillCircle(scx, scy - h * 0.22, Math.min(w, h) * 0.018);
+    }
+    // 颈/锁骨剪影装饰边
+    silhouette.fillStyle(r.bgDark, 1);
+    silhouette.fillRoundedRect(scx - w * 0.14, scy - h * 0.06, w * 0.28, h * 0.04, 4);
+
+    silhouette.setMask(mask);
+    c.add(silhouette);
+
+    // 3) 扫描线暗纹
+    const scanLines = scene.add.graphics();
+    for (let yy = 14; yy < h - 14; yy += 3) {
+      scanLines.fillStyle(0x000000, yy % 6 === 0 ? 0.09 : 0.04);
+      scanLines.fillRect(10, yy, w - 20, 1);
+    }
+    scanLines.setMask(mask);
+    c.add(scanLines);
+
+    // 4) 稀有度微光辐射（中心径向淡光）
+    const vignette = scene.add.graphics();
+    vignette.fillStyle(r.glow, 0.08);
+    vignette.fillCircle(scx, scy, Math.min(w, h) * 0.3);
+    vignette.fillStyle(r.glow, 0.06);
+    vignette.fillCircle(scx, scy, Math.min(w, h) * 0.18);
+    vignette.setMask(mask);
+    c.add(vignette);
+
+    // 5) "未获得"小字（底部金色小字条，代替原来居中的粗黑大字）
+    const tagBg = scene.add.graphics();
+    const tagW = w * 0.6;
+    const tagH = 22;
+    const tagY = h * 0.66;
+    tagBg.fillStyle(0x000000, 0.55);
+    tagBg.fillRoundedRect(w / 2 - tagW / 2, tagY - tagH / 2, tagW, tagH, tagH / 2);
+    tagBg.lineStyle(1.2, r.edgeBright, 0.8);
+    tagBg.strokeRoundedRect(w / 2 - tagW / 2, tagY - tagH / 2, tagW, tagH, tagH / 2);
+    // 挂锁符号（左侧）
+    tagBg.fillStyle(r.edgeBright, 1);
+    tagBg.fillRect(w / 2 - tagW / 2 + 10, tagY - 3, 8, 6);
+    tagBg.lineStyle(1.5, r.edgeBright, 1);
+    tagBg.beginPath();
+    tagBg.arc(w / 2 - tagW / 2 + 14, tagY - 3, 3, Math.PI, 0, false);
+    tagBg.strokePath();
+    tagBg.setMask(mask);
+    c.add(tagBg);
+    const label = scene.add.text(w / 2 + 6, tagY, '未获得', {
       fontFamily: DS.font.body,
-      fontSize: `${Math.floor(w * 0.26)}px`,
-      color: '#ffffff',
+      fontSize: `${Math.floor(Math.min(w, h) * 0.11)}px`,
+      color: '#fce5a0',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 4,
+      strokeThickness: 2,
     }).setOrigin(0.5);
     label.setMask(mask);
     c.add(label);
+
   } else if (opts.portraitKey) {
     // 已获得：头像
     c.add(g);
