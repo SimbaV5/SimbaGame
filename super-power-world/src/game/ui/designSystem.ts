@@ -2785,24 +2785,69 @@ export function drawFloatingSideIcon(
 
   c.add(g);
 
-  // ===== 图标（优先用 polished 矢量图，仅在未匹配到 IconKey 时回退到 emoji） =====
+  // ===== 图标：优先 PNG → 次选 polished 矢量 → 末选 emoji =====
   const iconKeys: Record<string, IconKey> = {
     '🎁': 'gift', '📨': 'invite', '✉️': 'mail', '🧰': 'kit',
     '⚒️': 'advance', '⚙️': 'gem_pink', '💎': 'gem_orange',
     '🗺️': 'map', '🧭': 'compass', '🎒': 'bag',
     '💬': 'chat', '😸': 'circle_chat', '⏳': 'hourglass',
   };
+  // IconKey → Phaser texture key (预加载的 PNG 资源)
+  const pngTextureMap: Partial<Record<IconKey, string>> = {
+    gift:       'icon_chest',
+    invite:     'icon_invite',
+    mail:       'icon_mail',
+    kit:        'icon_kit',
+    advance:    'icon_advance',
+    gem_pink:   'icon_gem_pink',
+    gem_orange: 'icon_gem_pink',
+    map:        'icon_map',
+    compass:    'icon_compass',
+    bag:        'icon_bag',
+    chat:       'icon_chat_guild',
+    circle_chat:'icon_chat_friend',
+    hourglass:  'icon_hourglass',
+  };
   const resolvedKey: IconKey | undefined =
     typeof iconGlyphOrKey === 'string' && (iconGlyphOrKey.length > 4)
       ? (iconGlyphOrKey as IconKey)
       : iconKeys[iconGlyphOrKey as string];
 
+  const iconCx = panelSize / 2 - 2;
+  const iconCy = panelSize / 2 - 2;
+  const iconSize = size * 0.9;
+
   if (resolvedKey) {
-    const ig = drawPolishedIcon(scene, resolvedKey, panelSize / 2 - 2, panelSize / 2 - 2, size * 0.9);
-    c.add(ig);
+    const texKey = pngTextureMap[resolvedKey];
+    // —— 1. 优先 PNG 图标（从 BootScene 预加载的纹理） ——
+    if (texKey && scene.textures.exists(texKey)) {
+      const maskG = scene.add.graphics();
+      maskG.setVisible(false);
+      maskG.fillStyle(0xffffff, 1);
+      maskG.fillCircle(iconCx, iconCy, iconSize * 0.52);
+      const mask = new Phaser.Display.Masks.GeometryMask(scene, maskG);
+
+      const img = scene.add.image(iconCx, iconCy, texKey);
+      img.setDisplaySize(iconSize * 1.05, iconSize * 1.05);
+      img.setMask(mask);
+
+      // 微高光顶弧（增强质感）
+      const hl = scene.add.graphics();
+      hl.fillStyle(0xffffff, 0.12);
+      hl.beginPath();
+      hl.arc(iconCx, iconCy - iconSize * 0.15, iconSize * 0.42, Math.PI * 1.1, Math.PI * 1.9);
+      hl.closePath(); hl.fillPath();
+
+      c.add([img, hl]);
+      // maskG 作为 mask 的数据源需要保留在 scene 中，不要销毁
+    } else {
+      // —— 2. fallback: polished 矢量图标 ——
+      const ig = drawPolishedIcon(scene, resolvedKey, iconCx, iconCy, iconSize);
+      c.add(ig);
+    }
   } else {
-    // 回退：emoji
-    const icon = scene.add.text(panelSize / 2 - 2, panelSize / 2 - 4, iconGlyphOrKey as string, {
+    // —— 3. 最终 fallback: emoji ——
+    const icon = scene.add.text(iconCx, iconCy - 2, iconGlyphOrKey as string, {
       fontFamily: DS.font.display,
       fontSize: `${Math.floor(size * 0.55)}px`,
       color: '#ffffff',

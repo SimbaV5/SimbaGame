@@ -317,18 +317,33 @@ export class MainScene extends Phaser.Scene {
   }
 
   private drawChibiHero() {
-    const hero = useHeroStore().heroes[0];
-    if (!hero) return;
-    const baseHero = HERO_MAP[hero.heroId];
-    const key = 'chibi_main_' + hero.uid;
-    if (!this.textures.exists(key)) {
-      const p = getHeroPortrait(baseHero);
-      this.textures.addCanvas(key, p);
-    }
-    // 立绘容器
     const cx = 110, cy = GAME_HEIGHT * 0.58;
-    const sprite = this.add.image(cx, cy, key);
-    sprite.setDisplaySize(280, 280);
+    let sprite: Phaser.GameObjects.Image;
+
+    // —— 1. 优先使用 AI 生成的 PNG Chibi 立绘 ——
+    if (this.textures.exists('chibi_cat_archer')) {
+      sprite = this.add.image(cx, cy, 'chibi_cat_archer');
+      sprite.setDisplaySize(260, 260);
+
+      // 给 PNG 加一层椭圆形底盘阴影（裁剪掉多余的方形外框感）
+      const maskG = this.add.graphics();
+      maskG.setVisible(false);
+      maskG.fillStyle(0xffffff, 1);
+      maskG.fillEllipse(cx, cy, 220, 250);
+      const mask = new Phaser.Display.Masks.GeometryMask(this, maskG);
+      sprite.setMask(mask);
+    } else {
+      // —— 2. fallback: 使用程序化生成的英雄肖像 ——
+      const hero = useHeroStore().heroes[0];
+      const baseHero = hero ? HERO_MAP[hero.heroId] : undefined;
+      const key = 'chibi_main_placeholder';
+      if (!this.textures.exists(key) && baseHero) {
+        this.textures.addCanvas(key, getHeroPortrait(baseHero));
+      }
+      sprite = this.add.image(cx, cy, key);
+      sprite.setDisplaySize(280, 280);
+    }
+
     sprite.setAlpha(0).setScale(0.3);
     this.tweens.add({
       targets: sprite, alpha: 1, scaleX: 1, scaleY: 1,

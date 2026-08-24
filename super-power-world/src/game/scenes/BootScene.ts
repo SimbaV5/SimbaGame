@@ -18,6 +18,33 @@ export class BootScene extends Phaser.Scene {
 
   constructor() { super('BootScene'); }
 
+  // 预加载 PNG 素材（图标 + Chibi 角色）
+  preload() {
+    // —— 功能图标 13 张 ——
+    const iconAssets: Array<[string, string]> = [
+      ['icon_chest',    'assets/icons/icon_chest.jpg'],
+      ['icon_invite',   'assets/icons/icon_invite.jpg'],
+      ['icon_mail',     'assets/icons/icon_mail.jpg'],
+      ['icon_kit',      'assets/icons/icon_kit.jpg'],
+      ['icon_advance',  'assets/icons/icon_advance.jpg'],
+      ['icon_gem_pink', 'assets/icons/icon_gem_pink.jpg'],
+      ['icon_gem_blue', 'assets/icons/icon_gem_blue.jpg'],
+      ['icon_map',      'assets/icons/icon_map.jpg'],
+      ['icon_compass',  'assets/icons/icon_compass.jpg'],
+      ['icon_bag',      'assets/icons/icon_bag.jpg'],
+      ['icon_chat_guild',   'assets/icons/icon_chat_guild.jpg'],
+      ['icon_chat_friend', 'assets/icons/icon_chat_friend.jpg'],
+      ['icon_hourglass',   'assets/icons/icon_hourglass.jpg'],
+    ];
+    iconAssets.forEach(([key, path]) => this.load.image(key, path));
+
+    // —— Chibi 主城角色立绘 ——
+    this.load.image('chibi_cat_archer', 'assets/chibi/chibi_cat_archer.jpg');
+
+    // 加载失败时保持静默（fallback 到矢量/emoji）
+    this.load.on('loaderror', () => { /* noop */ });
+  }
+
   create() {
     this.drawBackdrop();
     this.drawBrand();
