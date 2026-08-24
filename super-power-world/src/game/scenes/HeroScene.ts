@@ -15,6 +15,7 @@ import { usePlayerStore } from '@/stores/playerStore';
 import { useHeroStore } from '@/stores/heroStore';
 import { HEROES, HERO_MAP } from '@/data/heroes';
 import { getHeroPortrait } from '@/core/assetGen';
+import { bus, BusEvents } from '@/core/eventBus';
 
 const FACTION_LIST = [
   { id: 'all', name: 'ALL', glyph: '◉' },
@@ -238,6 +239,12 @@ export class HeroScene extends Phaser.Scene {
     });
 
     let currentY = 200;
+
+    // 「英雄」子Tab 顶部插入快速编队行动条
+    if (this.subTab === 'hero') {
+      this.drawQuickFormation(currentY);
+      currentY += 104;
+    }
 
     groups.forEach(group => {
       // 过滤阵营
@@ -501,5 +508,161 @@ export class HeroScene extends Phaser.Scene {
       total += Math.floor(base.baseHp * (1 + h.level * 0.05) + base.baseAtk * (1 + h.level * 0.04));
     });
     return this.format(total);
+  }
+
+  // ===================== 一键编队行动条 =====================
+  private drawQuickFormation(startY: number) {
+    const player = usePlayerStore();
+    const heroStore = useHeroStore();
+    const slots = player.save.formation.slots;
+    const filled = slots.filter(Boolean).length;
+    const total = slots.length;
+
+    // 卡片背景
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0a2a4a, 0.78);
+    bg.fillRoundedRect(16, startY, GAME_WIDTH - 32, 88, 16);
+    bg.fillStyle(0x2a7fc8, 0.35);
+    bg.fillRoundedRect(18, startY + 2, GAME_WIDTH - 36, 84, 15);
+    bg.lineStyle(1.5, 0xffd76a, 0.55);
+    bg.strokeRoundedRect(16, startY, GAME_WIDTH - 32, 88, 16);
+
+    // 左侧标题
+    this.add.text(40, startY + 20, '当前阵容', {
+      fontFamily: DS.font.body, fontSize: '18px', color: '#cfe4ff', fontStyle: 'bold',
+    });
+    this.add.text(40, startY + 50, `${filled} / ${total}`, {
+      fontFamily: DS.font.display, fontSize: '30px',
+      color: filled === total ? '#7eea7e' : '#ffd76a',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,30,60,0.6)', strokeThickness: 2,
+    });
+
+    // 6 个槽位小圆点
+    const slotStartX = 170;
+    const slotGap = 28;
+    for (let i = 0; i < total; i++) {
+      const cx = slotStartX + i * slotGap;
+      const cy = startY + 44;
+      const cell = this.add.graphics();
+      if (slots[i]) {
+        cell.fillStyle(0x4ab46a, 1);
+      } else {
+        cell.fillStyle(0x555a6a, 0.7);
+      }
+      cell.fillCircle(cx, cy, 10);
+      cell.lineStyle(1.5, 0xffffff, 0.8);
+      cell.strokeCircle(cx, cy, 10);
+      this.add.text(cx, cy, String(i + 1), {
+        fontFamily: DS.font.body, fontSize: '12px', color: '#ffffff', fontStyle: 'bold',
+      }).setOrigin(0.5);
+    }
+
+    // 一键编队按钮
+    const btnX = GAME_WIDTH - 78;
+    const btnY = startY + 44;
+    const btnW = 128;
+    const btnH = 56;
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(0xff8c1a, 1);
+    btnBg.fillRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 14);
+    btnBg.fillStyle(0xffaa3a, 0.6);
+    btnBg.fillRoundedRect(btnX - btnW / 2 + 2, btnY - btnH / 2 + 2, btnW - 4, btnH / 2 - 2, 12);
+    btnBg.lineStyle(2, 0xffffff, 0.7);
+    btnBg.strokeRoundedRect(btnX - btnW / 2, btnY - btnH / 2, btnW, btnH, 14);
+    this.add.text(btnX, btnY - 8, '⚡ 一键编队', {
+      fontFamily: DS.font.display, fontSize: '20px', color: '#ffffff', fontStyle: 'bold',
+      stroke: 'rgba(0,30,60,0.7)', strokeThickness: 2,
+    }).setOrigin(0.5);
+    this.add.text(btnX, btnY + 14, `最强 ${total} 位`, {
+      fontFamily: DS.font.body, fontSize: '12px', color: '#fff2c0',
+    }).setOrigin(0.5);
+
+    const hasHero = heroStore.heroes.length > 0;
+    const hit = this.add.rectangle(btnX, btnY, btnW, btnH, 0xffffff, 0).setInteractive({ useHandCursor: hasHero });
+    hit.on('pointerdown', () => {
+      this.tweens.add({ targets: hit, scaleX: 0.95, scaleY: 0.95, duration: 60, yoyo: true });
+      this.autoFillFormation();
+    });
+  }
+
+  private autoFillFormation() {
+    const player = usePlayerStore();
+    const heroStore = useHeroStore();
+
+    if (heroStore.heroes.length === 0) {
+      this.showToast('当前没有英雄，请先到「野外」抽卡');
+      audio.playSfx?.('deny');
+      return;
+    }
+
+    // 战力评分：稀有度 > 等级 > 星级 > 觉醒 > 突破 > 天赋
+    const score = (h: any) => {
+      const base = HERO_MAP[h.heroId];
+      if (!base) return 0;
+      const lv = 1 + h.level * 0.05;
+      const star = 1 + (h.star - 1) * 0.3;
+      const awaken = 1 + h.awaken * 0.15;
+      const breakthrough = 1 + h.breakthrough * 0.1;
+      const talent = (h.talentPoints.hp || 0) + (h.talentPoints.atk || 0)
+                   + (h.talentPoints.def || 0) + (h.talentPoints.spd || 0);
+      const statSum = base.baseHp + base.baseAtk * 5 + base.baseDef * 3 + base.baseSpd * 2;
+      return statSum * lv * star * awaken * breakthrough * (1 + talent * 0.02);
+    };
+
+    const sorted = [...heroStore.heroes].sort((a, b) => score(b) - score(a));
+    const slots = player.save.formation.slots;
+
+    const used = new Set(slots.filter(Boolean) as string[]);
+    const remaining = sorted.filter((h) => !used.has(h.uid));
+
+    let filled = 0;
+    for (let i = 0; i < slots.length; i++) {
+      if (slots[i]) continue;
+      const next = remaining.shift();
+      if (!next) break;
+      slots[i] = next.uid;
+      used.add(next.uid);
+      filled++;
+    }
+
+    player.dirty = true;
+
+    if (filled === 0) {
+      this.showToast('编队已满，无需再填入');
+      audio.playSfx?.('toast');
+    } else {
+      const afterCount = slots.filter(Boolean).length;
+      this.showToast(`✓ 已编入 ${filled} 位英雄（${afterCount}/${slots.length}）`);
+      audio.playSfx?.('stage_start');
+      bus.emit(BusEvents.HeroUpdated, null);
+      this.drawContent();
+    }
+  }
+
+  private showToast(text: string) {
+    const w = 520;
+    const h = 68;
+    const x = GAME_WIDTH / 2;
+    const y = GAME_HEIGHT / 2 - 220;
+    const c = this.add.container(x, y);
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.78);
+    bg.fillRoundedRect(-w / 2, -h / 2, w, h, 18);
+    bg.lineStyle(2, 0xffd76a, 0.6);
+    bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 18);
+    const t = this.add.text(0, 0, text, {
+      fontFamily: DS.font.body, fontSize: '22px', color: '#ffffff', fontStyle: 'bold',
+    }).setOrigin(0.5);
+    c.add([bg, t]);
+    c.setDepth(200);
+    this.tweens.add({
+      targets: c,
+      alpha: 0,
+      y: y - 40,
+      duration: 1500,
+      delay: 800,
+      onComplete: () => c.destroy(),
+    });
   }
 }
