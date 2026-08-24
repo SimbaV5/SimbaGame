@@ -2104,6 +2104,15 @@ export function drawMainCityBackground(
     g.fillRect(w - vx, vy, vx, vh);
   }
 
+  // ========== V3 高级地形增强：草地精细化 + 远景雾山 + 石板路 + 路灯 ==========
+  drawDistantFogMountains(g, w, h, sunX, sunY);
+  drawHotAirBalloon(g, w * 0.78, h * 0.18, 1);
+  drawHotAirBalloon(g, w * 0.22, h * 0.10, 0.7);
+  drawDetailedGrasslands(g, w, h);
+  drawCobblestonePath(g, roadPts, w, h);
+  drawRoadTorches(g, roadPts, h);
+  drawSignPosts(g, w, h);
+
   return g;
 }
 
@@ -3914,4 +3923,312 @@ export function drawPinkBanner(
   }).setOrigin(0.5);
   c.add(t);
   return c;
+}
+
+// =============================================
+// V3 高级地形增强：草地精细化（多色草丛+花朵+泥点+质感）
+// =============================================
+function drawDetailedGrasslands(
+  g: Phaser.GameObjects.Graphics,
+  w: number, h: number,
+) {
+  const topY = h * 0.62;
+  const botY = h;
+
+  // A. 草地色块肌理（短斜笔触）
+  for (let i = 0; i < 260; i++) {
+    const x = Math.random() * w;
+    const y = topY + Math.random() * (botY - topY);
+    const len = 3 + Math.random() * 6;
+    const ang = -Math.PI / 2 + (Math.random() - 0.5) * 0.5;
+    const x2 = x + Math.cos(ang) * len;
+    const y2 = y + Math.sin(ang) * len;
+    const r = Math.random();
+    let col = 0x4a9a2e;
+    if (r < 0.32) col = 0x6aba40;
+    else if (r < 0.62) col = 0x4a9a2e;
+    else if (r < 0.85) col = 0x357a20;
+    else col = 0x7fd050;
+    g.lineStyle(1, col, 0.55);
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x2, y2);
+    g.strokePath();
+  }
+
+  // B. 花朵簇
+  const flowerColors = [0xfff0c0, 0xff8a4a, 0xffd76a, 0xe84a8a, 0xc0a0ff, 0xffffff];
+  for (let i = 0; i < 48; i++) {
+    const x = Math.random() * w;
+    const y = topY + 30 + Math.random() * (botY - topY - 60);
+    const c = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+    const s = 0.7 + Math.random() * 0.8;
+    g.lineStyle(1, 0x3a7a22, 0.85);
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x, y + 6 + Math.random() * 4);
+    g.strokePath();
+    g.fillStyle(0xffe880, 0.95);
+    g.fillCircle(x, y, 1.8 * s);
+    for (let p = 0; p < 5; p++) {
+      const a = (p / 5) * Math.PI * 2;
+      const px = x + Math.cos(a) * 2.2 * s;
+      const py = y + Math.sin(a) * 2.2 * s;
+      g.fillStyle(c, 0.92);
+      g.fillCircle(px, py, 1.6 * s);
+    }
+  }
+
+  // C. 泥点/鹅卵石
+  for (let i = 0; i < 70; i++) {
+    const x = Math.random() * w;
+    const y = topY + Math.random() * (botY - topY);
+    if (x > w * 0.36 && x < w * 0.68 && y > h * 0.5) continue;
+    const r = 1.2 + Math.random() * 2.2;
+    g.fillStyle(0x6a5a3a, 0.55);
+    g.fillEllipse(x, y, r * 1.4, r * 0.8);
+    g.fillStyle(0xa08868, 0.7);
+    g.fillEllipse(x - 0.4, y - 0.4, r * 1.1, r * 0.6);
+  }
+
+  // D. 草丛簇团
+  for (let i = 0; i < 22; i++) {
+    const cx = Math.random() * w;
+    const cy = topY + 40 + Math.random() * (botY - topY - 80);
+    if (cx > w * 0.36 && cx < w * 0.68 && cy > h * 0.5) continue;
+    for (let blade = 0; blade < 14; blade++) {
+      const bx = cx + (Math.random() - 0.5) * 22;
+      const bh = 4 + Math.random() * 8;
+      const curl = (Math.random() - 0.5) * 3;
+      const gr = Math.random() > 0.4 ? 0x3a8a32 : 0x5aaa42;
+      g.lineStyle(1.4, gr, 0.92);
+      g.beginPath();
+      g.moveTo(bx, cy);
+      for (let st = 1; st <= 5; st++) {
+        const t = st / 5;
+        g.lineTo(bx + curl * t, cy - bh * t);
+      }
+      g.strokePath();
+    }
+    g.fillStyle(0x000000, 0.12);
+    g.fillEllipse(cx, cy + 2, 16, 4);
+  }
+
+  // E. 远处稀树
+  for (let i = 0; i < 8; i++) {
+    const x = Math.random() * w;
+    const y = h * 0.65 + Math.random() * (h * 0.20);
+    if (x > w * 0.32 && x < w * 0.72) continue;
+    const s = 4 + Math.random() * 6;
+    g.fillStyle(0x2a6a1a, 0.7);
+    g.beginPath();
+    g.moveTo(x, y - s);
+    g.lineTo(x - s * 0.6, y);
+    g.lineTo(x + s * 0.6, y);
+    g.closePath(); g.fillPath();
+    g.fillStyle(0x1a4a10, 0.8);
+    g.fillRect(x - 1.5, y, 3, 3);
+  }
+}
+
+// =============================================
+// V3 远景雾山（增加地平线深度）
+// =============================================
+function drawDistantFogMountains(
+  g: Phaser.GameObjects.Graphics,
+  w: number, h: number,
+  _sunX: number, _sunY: number,
+) {
+  const baseY = h * 0.26;
+  g.fillStyle(0xb8d8e8, 0.5);
+  g.beginPath();
+  g.moveTo(0, baseY + 40);
+  for (let i = 0; i <= 12; i++) {
+    const px = (w / 12) * i;
+    const py = baseY - Math.abs(Math.sin(i * 0.9 + 0.3)) * 36 - (i % 3) * 10;
+    g.lineTo(px, py);
+  }
+  g.lineTo(w, baseY + 40);
+  g.closePath(); g.fillPath();
+
+  g.fillStyle(0xffffff, 0.18);
+  g.beginPath();
+  g.moveTo(0, baseY - 10);
+  for (let i = 0; i <= 12; i++) {
+    const px = (w / 12) * i;
+    const py = baseY - Math.abs(Math.sin(i * 0.9 + 0.3)) * 36 - (i % 3) * 10;
+    g.lineTo(px, py + 4);
+  }
+  g.lineTo(w, baseY - 10);
+  g.closePath(); g.fillPath();
+
+  g.fillStyle(0xd8e8f4, 0.55);
+  g.fillRect(0, baseY + 8, w, 10);
+
+  // 雪顶
+  for (let i = 0; i < 12; i++) {
+    const px = (w / 12) * i + (w / 24);
+    const py = baseY - Math.abs(Math.sin(i * 0.9 + 0.3)) * 36 - (i % 3) * 10;
+    if (py < baseY - 24) {
+      g.fillStyle(0xffffff, 0.7);
+      g.beginPath();
+      g.moveTo(px - 8, py + 6);
+      g.lineTo(px, py);
+      g.lineTo(px + 8, py + 6);
+      g.closePath(); g.fillPath();
+    }
+  }
+}
+
+// =============================================
+// V3 热气球（丰富天空中景）
+// =============================================
+function drawHotAirBalloon(
+  g: Phaser.GameObjects.Graphics, x: number, y: number, s: number,
+) {
+  g.fillStyle(0x000000, 0.1);
+  g.fillEllipse(x + 2, y + 2, 36 * s, 40 * s);
+  g.fillStyle(0xc04030, 1);
+  g.beginPath();
+  g.arc(x, y, 18 * s, Math.PI, 0, false);
+  g.lineTo(x + 18 * s, y);
+  for (let i = 0; i <= 8; i++) {
+    const t = i / 8;
+    const px = x + 18 * s * (1 - 2 * t);
+    const py = y + Math.sin(t * Math.PI) * (-2 * s);
+    g.lineTo(px, py);
+  }
+  g.closePath(); g.fillPath();
+  for (let i = 0; i < 3; i++) {
+    g.fillStyle(0xf0c040, 1);
+    g.fillRect(x - 18 * s + i * 12 * s, y - 14 * s, 3 * s, 14 * s);
+  }
+  g.fillStyle(0x8a5a2a, 1);
+  g.fillRect(x - 6 * s, y + 18 * s, 12 * s, 8 * s);
+  g.lineStyle(0.8, 0x3a2a18, 0.85);
+  g.lineBetween(x - 14 * s, y + 4 * s, x - 6 * s, y + 18 * s);
+  g.lineBetween(x + 14 * s, y + 4 * s, x + 6 * s, y + 18 * s);
+  g.fillStyle(0xffffff, 0.35);
+  g.fillEllipse(x - 6 * s, y - 8 * s, 6 * s, 10 * s);
+}
+
+// =============================================
+// V3 石板路（沿原路径叠加石板纹理）
+// =============================================
+function drawCobblestonePath(
+  g: Phaser.GameObjects.Graphics,
+  roadPts: { x: number; y: number }[], w: number, h: number,
+) {
+  for (let i = 1; i < roadPts.length - 1; i += 2) {
+    const p = roadPts[i];
+    const next = roadPts[i + 1] || p;
+    const dx = next.x - p.x;
+    const dy = next.y - p.y;
+    const ang = Math.atan2(dy, dx);
+    g.save();
+    g.translateCanvas(p.x, p.y);
+    g.rotateCanvas(ang);
+    g.fillStyle(0x000000, 0.18);
+    g.fillEllipse(0, 3, 36, 9);
+    g.fillStyle(0xb89060, 1);
+    g.fillEllipse(0, 0, 32, 7);
+    g.fillStyle(0xd4b888, 0.85);
+    g.fillEllipse(-1, -1, 28, 4);
+    g.lineStyle(0.5, 0x6a4828, 0.7);
+    g.strokeEllipse(0, 0, 32, 7);
+    g.rotateCanvas(-ang);
+    g.translateCanvas(-p.x, -p.y);
+    g.restore();
+  }
+
+  for (let i = 8; i < roadPts.length - 4; i += 10) {
+    const p = roadPts[i];
+    g.fillStyle(0x000000, 0.18);
+    g.fillEllipse(p.x + 1, p.y + 18, 4, 1.5);
+  }
+}
+
+// =============================================
+// V3 路灯/火把（沿路径增加温馨感）
+// =============================================
+function drawRoadTorches(
+  g: Phaser.GameObjects.Graphics,
+  roadPts: { x: number; y: number }[], h: number,
+) {
+  const indices = [6, 16, 26, 36];
+  indices.forEach((idx, k) => {
+    if (idx >= roadPts.length) return;
+    const p = roadPts[idx];
+    const offsetX = (k % 2 === 0) ? -52 : 52;
+    const tx = p.x + offsetX;
+    const ty = p.y + 14;
+
+    g.fillStyle(0x000000, 0.25);
+    g.fillRect(tx - 1, ty - 24, 3, 28);
+    g.fillStyle(0x6a4828, 1);
+    g.fillRect(tx - 1.5, ty - 26, 2.5, 28);
+    g.fillStyle(0x8a6840, 1);
+    g.fillRect(tx - 1, ty - 25, 1, 26);
+
+    g.fillStyle(0x8a6420, 1);
+    g.fillRect(tx - 4, ty - 30, 8, 4);
+    g.fillStyle(0xc08840, 1);
+    g.fillRect(tx - 4, ty - 30, 8, 2);
+
+    g.fillStyle(0xfff080, 0.95);
+    g.fillCircle(tx, ty - 32, 4);
+    g.fillStyle(0xffa030, 0.9);
+    g.fillCircle(tx, ty - 31, 3);
+    g.fillStyle(0xff5a10, 0.85);
+    g.fillCircle(tx, ty - 30, 1.8);
+    g.fillStyle(0xffffff, 0.85);
+    g.fillCircle(tx - 0.8, ty - 33, 1.2);
+
+    for (let rr = 0; rr < 4; rr++) {
+      g.fillStyle(0xffc060, 0.12 - rr * 0.025);
+      g.fillCircle(tx, ty - 32, 14 + rr * 6);
+    }
+  });
+}
+
+// =============================================
+// V3 告示牌（增加村庄感）
+// =============================================
+function drawSignPosts(
+  g: Phaser.GameObjects.Graphics, w: number, h: number,
+) {
+  const positions = [
+    { x: w * 0.18, y: h * 0.55, dir: 'left' as const },
+    { x: w * 0.85, y: h * 0.62, dir: 'right' as const },
+  ];
+  positions.forEach(({ x, y, dir }) => {
+    g.fillStyle(0x000000, 0.28);
+    g.fillRect(x - 1, y - 2, 3, 32);
+    g.fillStyle(0x6a4828, 1);
+    g.fillRect(x - 1.5, y - 4, 2.5, 32);
+    g.fillStyle(0x9a7048, 1);
+    if (dir === 'left') g.fillRect(x - 24, y - 14, 22, 16);
+    else g.fillRect(x + 2, y - 14, 22, 16);
+    g.fillStyle(0xc08850, 0.85);
+    if (dir === 'left') g.fillRect(x - 24, y - 15, 20, 5);
+    else g.fillRect(x + 2, y - 15, 20, 5);
+    g.lineStyle(0.5, 0x5a3818, 0.7);
+    if (dir === 'left') {
+      g.lineBetween(x - 24, y - 8, x - 4, y - 8);
+      g.lineBetween(x - 24, y - 4, x - 4, y - 4);
+    } else {
+      g.lineBetween(x + 2, y - 8, x + 22, y - 8);
+      g.lineBetween(x + 2, y - 4, x + 22, y - 4);
+    }
+    g.fillStyle(0x6a4828, 1);
+    if (dir === 'left') {
+      g.beginPath();
+      g.moveTo(x - 25, y - 16); g.lineTo(x - 14, y - 22); g.lineTo(x - 3, y - 16);
+      g.closePath(); g.fillPath();
+    } else {
+      g.beginPath();
+      g.moveTo(x + 1, y - 16); g.lineTo(x + 12, y - 22); g.lineTo(x + 23, y - 16);
+      g.closePath(); g.fillPath();
+    }
+  });
 }
