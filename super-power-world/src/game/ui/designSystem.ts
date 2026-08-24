@@ -4262,3 +4262,816 @@ function drawSignPosts(
     }
   });
 }
+
+// =========================================================
+// V4 通用场景背景（多主题，匹配主城卡通精致风格）
+//   主题：city | castle | grassland | forest | night | celestial |
+//         volcanic | aqua | cosmic | temple
+// =========================================================
+export type SceneBackdropTheme =
+  | 'city' | 'castle' | 'grassland' | 'forest' | 'night'
+  | 'celestial' | 'volcanic' | 'aqua' | 'cosmic' | 'temple';
+
+export function drawSceneBackdrop(
+  scene: Phaser.Scene,
+  w: number, h: number,
+  theme: SceneBackdropTheme = 'city',
+  opts: { dimTop?: number; dimBottom?: number } = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(0, 0);
+  const g = scene.add.graphics();
+  c.add(g);
+
+  const top = opts.dimTop ?? 100;
+  const bot = opts.dimBottom ?? 160;
+
+  if (theme === 'night' || theme === 'cosmic') {
+    const layers = 14;
+    for (let i = 0; i < layers; i++) {
+      const t = i / layers;
+      const r = Math.floor(0x07 + (0x3a - 0x07) * t);
+      const gg = Math.floor(0x04 + (0x18 - 0x04) * t);
+      const b = Math.floor(0x18 + (0x60 - 0x18) * t);
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      g.fillRect(0, (h / layers) * i, w, (h / layers) + 1);
+    }
+    const starCols = [0xffffff, 0xffe48a, 0x9fe7ff, 0xff9ec7];
+    for (let s = 0; s < 220; s++) {
+      const sx = Math.random() * w;
+      const sy = Math.random() * h * 0.85;
+      const r = Math.random() * 1.8 + 0.4;
+      g.fillStyle(starCols[Math.floor(Math.random() * starCols.length)], 0.55 + Math.random() * 0.4);
+      g.fillCircle(sx, sy, r);
+      if (r > 1.4) {
+        g.fillStyle(0xffffff, 0.9);
+        g.fillCircle(sx, sy, r * 0.5);
+      }
+    }
+    const mx = w * 0.82, my = h * 0.14;
+    for (let i = 6; i > 0; i--) {
+      g.fillStyle(0xfff6c8, 0.05 + i * 0.02);
+      g.fillCircle(mx, my, 30 + i * 22);
+    }
+    g.fillStyle(0xfff6c8, 1);
+    g.fillCircle(mx, my, 44);
+    g.fillStyle(0xe8e0b8, 1);
+    g.fillCircle(mx + 6, my + 4, 36);
+    g.fillStyle(0xfff6c8, 1);
+    g.fillCircle(mx - 4, my - 6, 8);
+
+    if (theme === 'cosmic') {
+      const nebs = [
+        { x: w * 0.2, y: h * 0.35, r: 130, col: 0x9d6cff },
+        { x: w * 0.6, y: h * 0.25, r: 110, col: 0x5cd1ff },
+        { x: w * 0.4, y: h * 0.55, r: 90,  col: 0xff7ec5 },
+      ];
+      nebs.forEach(n => {
+        for (let i = 4; i > 0; i--) {
+          g.fillStyle(n.col, 0.04 + i * 0.015);
+          g.fillCircle(n.x, n.y, n.r * (i / 4) + 20);
+        }
+      });
+    } else {
+      g.fillStyle(0x0a0228, 1);
+      g.beginPath();
+      g.moveTo(0, h * 0.78);
+      const peaks = 9;
+      for (let i = 0; i <= peaks; i++) {
+        const px = (w / peaks) * i;
+        const py = h * 0.7 - Math.abs(Math.sin(i * 1.3)) * 40 - (i % 2) * 22;
+        g.lineTo(px, py);
+      }
+      g.lineTo(w, h * 0.78);
+      g.closePath(); g.fillPath();
+    }
+  } else if (theme === 'volcanic') {
+    const layers = 14;
+    for (let i = 0; i < layers; i++) {
+      const t = i / layers;
+      const r = Math.floor(0x4a + (0x18 - 0x4a) * t);
+      const gg = Math.floor(0x10 + (0x08 - 0x10) * t);
+      const b = Math.floor(0x0a + (0x12 - 0x0a) * t);
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      g.fillRect(0, (h / layers) * i, w, (h / layers) + 1);
+    }
+    for (let i = 0; i < 5; i++) {
+      const sx = w * (0.2 + i * 0.18);
+      const sy = h * 0.4;
+      for (let j = 0; j < 6; j++) {
+        g.fillStyle(0x3a201a, 0.5 - j * 0.07);
+        g.fillCircle(sx + (j % 2 === 0 ? 8 : -8), sy - j * 28, 30 + j * 6);
+      }
+    }
+    const vx = w / 2, vy = h * 0.35;
+    g.fillStyle(0x1a0a0a, 1);
+    g.beginPath();
+    g.moveTo(0, h);
+    g.lineTo(w * 0.2, h * 0.5);
+    g.lineTo(w * 0.4, h * 0.35);
+    g.lineTo(vx - 40, h * 0.30);
+    g.lineTo(vx, h * 0.32);
+    g.lineTo(vx + 40, h * 0.30);
+    g.lineTo(w * 0.6, h * 0.35);
+    g.lineTo(w * 0.8, h * 0.5);
+    g.lineTo(w, h);
+    g.closePath(); g.fillPath();
+    g.fillStyle(0xff5a20, 1);
+    g.beginPath();
+    g.moveTo(vx - 30, h * 0.30);
+    g.lineTo(vx + 30, h * 0.30);
+    g.lineTo(vx + 20, h * 0.34);
+    g.lineTo(vx - 20, h * 0.34);
+    g.closePath(); g.fillPath();
+    g.fillStyle(0xffaa30, 1);
+    g.fillEllipse(vx, h * 0.32, 20, 8);
+  } else if (theme === 'aqua') {
+    const layers = 14;
+    for (let i = 0; i < layers; i++) {
+      const t = i / layers;
+      const r = Math.floor(0x4a + (0x10 - 0x4a) * t);
+      const gg = Math.floor(0xc0 + (0x60 - 0xc0) * t);
+      const b = Math.floor(0xff + (0xa8 - 0xff) * t);
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      g.fillRect(0, (h / layers) * i, w, (h / layers) + 1);
+    }
+    for (let i = 0; i < 16; i++) {
+      const x = Math.random() * w;
+      const y = h * 0.05 + Math.random() * h * 0.4;
+      g.fillStyle(0xffffff, 0.05 + Math.random() * 0.08);
+      g.fillEllipse(x, y, 30 + Math.random() * 50, 4);
+    }
+    for (let i = 0; i < 70; i++) {
+      const x = Math.random() * w;
+      const y = h * 0.3 + Math.random() * h * 0.7;
+      g.fillStyle(0xffffff, 0.18);
+      g.fillCircle(x, y, 2 + Math.random() * 4);
+    }
+  } else if (theme === 'celestial' || theme === 'temple') {
+    const layers = 14;
+    for (let i = 0; i < layers; i++) {
+      const t = i / layers;
+      const r = Math.floor(0xff + (0xc8 - 0xff) * t);
+      const gg = Math.floor(0xf6 + (0xa0 - 0xf6) * t);
+      const b = Math.floor(0xd8 + (0x60 - 0xd8) * t);
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      g.fillRect(0, (h / layers) * i, w, (h / layers) + 1);
+    }
+    for (let i = 0; i < 4; i++) {
+      const lx = w * (0.15 + i * 0.22);
+      for (let j = 8; j > 0; j--) {
+        g.fillStyle(0xfff6c8, 0.04 + j * 0.015);
+        g.fillEllipse(lx, h * 0.55, 80 + j * 12, h * 0.6);
+      }
+    }
+    g.fillStyle(0xe8c088, 0.6);
+    g.beginPath();
+    g.moveTo(0, h * 0.65);
+    const peaks = 8;
+    for (let i = 0; i <= peaks; i++) {
+      const px = (w / peaks) * i;
+      const py = h * 0.55 - Math.abs(Math.sin(i * 1.4)) * 50 - (i % 2) * 18;
+      g.lineTo(px, py);
+    }
+    g.lineTo(w, h * 0.65);
+    g.closePath(); g.fillPath();
+  } else if (theme === 'forest') {
+    const layers = 10;
+    for (let i = 0; i < layers; i++) {
+      const t = i / layers;
+      const r = Math.floor(0x9f + (0x3a - 0x9f) * t);
+      const gg = Math.floor(0xd8 + (0x68 - 0xd8) * t);
+      const b = Math.floor(0xff + (0x32 - 0xff) * t);
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      g.fillRect(0, (h * 0.55 / layers) * i, w, (h * 0.55 / layers) + 1);
+    }
+    const grassLayers = 8;
+    for (let i = 0; i < grassLayers; i++) {
+      const t = i / grassLayers;
+      const r = Math.floor(0x7a + (0x2d - 0x7a) * t);
+      const gg = Math.floor(0xc9 + (0x5a - 0xc9) * t);
+      const b = Math.floor(0x4a + (0x1a - 0x4a) * t);
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      const y0 = h * 0.55 + ((h * 0.45) / grassLayers) * i;
+      g.fillRect(0, y0, w, ((h * 0.45) / grassLayers) + 1);
+    }
+    for (let i = 0; i < 14; i++) {
+      const tx = (i / 14) * w + 20;
+      const ty = h * 0.52;
+      g.fillStyle(0x2a5a18, 0.7);
+      g.fillTriangle(tx, ty - 70, tx - 24, ty, tx + 24, ty);
+      g.fillTriangle(tx, ty - 50, tx - 18, ty - 6, tx + 18, ty - 6);
+      g.fillStyle(0x4a8a30, 0.7);
+      g.fillTriangle(tx + 4, ty - 70, tx - 16, ty, tx + 24, ty);
+    }
+  } else if (theme === 'castle') {
+    const layers = 10;
+    for (let i = 0; i < layers; i++) {
+      const t = i / layers;
+      const r = Math.floor(0xff + (0xd0 - 0xff) * t);
+      const gg = Math.floor(0xd8 + (0x90 - 0xd8) * t);
+      const b = Math.floor(0xff + (0xc8 - 0xff) * t);
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      g.fillRect(0, (h * 0.6 / layers) * i, w, (h * 0.6 / layers) + 1);
+    }
+    const grassLayers = 8;
+    for (let i = 0; i < grassLayers; i++) {
+      const t = i / grassLayers;
+      const r = Math.floor(0x7a + (0x3f - 0x7a) * t);
+      const gg = Math.floor(0xc9 + (0x8a - 0xc9) * t);
+      const b = Math.floor(0x4a + (0x25 - 0x4a) * t);
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      const y0 = h * 0.6 + ((h * 0.4) / grassLayers) * i;
+      g.fillRect(0, y0, w, ((h * 0.4) / grassLayers) + 1);
+    }
+    g.fillStyle(0xa8a898, 0.6);
+    g.beginPath();
+    g.moveTo(0, h * 0.6);
+    const peaks = 8;
+    for (let i = 0; i <= peaks; i++) {
+      const px = (w / peaks) * i;
+      const py = h * 0.5 - Math.abs(Math.sin(i * 1.4)) * 40 - (i % 2) * 16;
+      g.lineTo(px, py);
+    }
+    g.lineTo(w, h * 0.6);
+    g.closePath(); g.fillPath();
+  } else {
+    const layers = 12;
+    for (let i = 0; i < layers; i++) {
+      const t = i / layers;
+      const r = Math.floor(0x8f + (0xd8 - 0x8f) * t);
+      const gg = Math.floor(0xd4 + (0xf0 - 0xd4) * t);
+      const b = 0xff;
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      g.fillRect(0, (h * 0.45 / layers) * i, w, (h * 0.45 / layers) + 1);
+    }
+    const grassLayers = 10;
+    for (let i = 0; i < grassLayers; i++) {
+      const t = i / grassLayers;
+      const r = Math.floor(0x7a + (0x3f - 0x7a) * t);
+      const gg = Math.floor(0xc9 + (0x8a - 0xc9) * t);
+      const b = Math.floor(0x4a + (0x25 - 0x4a) * t);
+      const col = (r << 16) | (gg << 8) | b;
+      g.fillStyle(col, 1);
+      const y0 = h * 0.45 + ((h * 0.55) / grassLayers) * i;
+      g.fillRect(0, y0, w, ((h * 0.55) / grassLayers) + 1);
+    }
+    const drawMt = (baseY: number, amp: number, lc: number, dc: number, al: number) => {
+      g.fillStyle(lc, al);
+      g.beginPath();
+      g.moveTo(0, baseY + 40);
+      for (let i = 0; i <= 10; i++) {
+        const px = (w / 10) * i;
+        const py = baseY - Math.abs(Math.sin(i * 1.1 + baseY)) * amp - (i % 2) * 14;
+        g.lineTo(px, py);
+      }
+      g.lineTo(w, baseY + 40);
+      g.closePath(); g.fillPath();
+    };
+    drawMt(h * 0.30, 30, 0x9ccce8, 0x7ab0d8, 0.85);
+    drawMt(h * 0.34, 26, 0x8ac0d8, 0x6aa0c0, 0.9);
+    drawMt(h * 0.38, 20, 0x78b4c8, 0x5890b0, 0.95);
+
+    const drawCloud = (cx: number, cy: number, s: number) => {
+      const ellipses = [
+        { dx: -28, dy: 0, rx: 26, ry: 16 },
+        { dx: -8,  dy: -8, rx: 28, ry: 20 },
+        { dx: 14,  dy: -4, rx: 24, ry: 16 },
+        { dx: 30,  dy: 2, rx: 22, ry: 14 },
+        { dx: -14, dy: 4, rx: 22, ry: 14 },
+      ];
+      for (let i = 0; i < 3; i++) {
+        ellipses.forEach(e => {
+          g.fillStyle(0xffffff, 0.85 - i * 0.2);
+          g.fillEllipse(cx + e.dx * s, cy + e.dy * s + i * 2, e.rx * s, e.ry * s);
+        });
+      }
+    };
+    drawCloud(w * 0.18, h * 0.10, 1.0);
+    drawCloud(w * 0.78, h * 0.06, 0.9);
+    drawCloud(w * 0.45, h * 0.18, 0.7);
+    const sx = w * 0.85, sy = h * 0.10;
+    for (let i = 6; i > 0; i--) {
+      g.fillStyle(0xffe9a0, 0.06 + (6 - i) * 0.015);
+      g.fillCircle(sx, sy, 24 + i * 18);
+    }
+    g.fillStyle(0xfff6c8, 1);
+    g.fillCircle(sx, sy, 30);
+    g.fillStyle(0xffffff, 0.7);
+    g.fillCircle(sx - 6, sy - 6, 9);
+  }
+
+  const topShade = scene.add.graphics();
+  topShade.fillStyle(0x000000, 0.22);
+  topShade.fillRect(0, 0, w, top);
+  topShade.setDepth(-10);
+  c.add(topShade);
+
+  const botShade = scene.add.graphics();
+  botShade.fillStyle(0x000000, 0.28);
+  botShade.fillRect(0, h - bot, w, bot);
+  botShade.setDepth(-10);
+  c.add(botShade);
+
+  return c;
+}
+
+// =========================================================
+// V4 顶部导航栏（卡通金边 + 标题 + 返回按钮 + 可选右侧插槽）
+// =========================================================
+export interface TopNavOpts {
+  back?: () => void;
+  right?: () => void;
+  rightGlyph?: string;
+  rightBadge?: boolean;
+  titleColor?: string;
+  subtitle?: string;
+}
+export function drawTopNav(
+  scene: Phaser.Scene,
+  title: string,
+  opts: TopNavOpts = {},
+): Phaser.GameObjects.Container {
+  const w = GAME_WIDTH_REF;
+  const h = 90;
+  const c = scene.add.container(0, 0);
+
+  const g = scene.add.graphics();
+  g.fillStyle(0x000000, 0.35);
+  g.fillRoundedRect(8, 12, w - 16, h - 8, 18);
+  g.fillStyle(0x0a2a4a, 1);
+  g.fillRoundedRect(0, 0, w, h, 16);
+  g.fillStyle(0x1a4a8a, 1);
+  g.fillRoundedRect(0, 0, w, h - 6, 16);
+  g.fillStyle(0x2a6fb5, 1);
+  g.fillRoundedRect(6, 6, w - 12, h - 16, 12);
+  g.fillStyle(0x3a8fd5, 1);
+  g.fillRoundedRect(8, 8, w - 16, h - 22, 10);
+  g.fillStyle(0xffffff, 0.18);
+  g.fillRoundedRect(12, 10, w - 24, 22, 12);
+  g.fillStyle(CARTOON.hexGold, 0.85);
+  g.fillRect(0, 0, w, 3);
+  g.fillStyle(0xfff0a0, 0.6);
+  g.fillRect(0, 3, w, 1);
+  g.fillStyle(CARTOON.hexGold, 0.5);
+  g.fillRect(0, h - 3, w, 3);
+
+  const corner = (cx: number, cy: number, dx: number, dy: number) => {
+    g.fillStyle(CARTOON.hexGold, 1);
+    g.fillCircle(cx, cy, 6);
+    g.fillStyle(0xfff0a0, 0.85);
+    g.fillCircle(cx - dx, cy - dy, 2.5);
+  };
+  corner(18, 18, 1.5, 1.5);
+  corner(w - 18, 18, 1.5, 1.5);
+  corner(18, h - 18, 1.5, 1.5);
+  corner(w - 18, h - 18, 1.5, 1.5);
+
+  g.lineStyle(2, 0xffffff, 0.4);
+  g.strokeRoundedRect(4, 4, w - 8, h - 8, 14);
+
+  c.add(g);
+
+  if (opts.back) {
+    const bx = 56, by = h / 2;
+    const bg = scene.add.graphics();
+    bg.fillStyle(0x0a2a4a, 1);
+    bg.fillCircle(bx, by, 28);
+    bg.fillStyle(0x2a6fb5, 1);
+    bg.fillCircle(bx, by, 24);
+    bg.fillStyle(0x6ab8f0, 0.5);
+    bg.fillCircle(bx - 3, by - 4, 14);
+    bg.lineStyle(2, 0xffffff, 0.7);
+    bg.strokeCircle(bx, by, 24);
+    const t = scene.add.text(bx, by + 2, '◀', {
+      fontFamily: DS.font.display,
+      fontSize: '24px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,30,60,0.6)',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    const back = scene.add.container(bx, by, [bg, t]);
+    back.setSize(56, 56);
+    back.setInteractive(new Phaser.Geom.Rectangle(-28, -28, 56, 56), Phaser.Geom.Rectangle.Contains);
+    back.on('pointerdown', () => {
+      scene.tweens.add({ targets: back, scaleX: 0.9, scaleY: 0.9, duration: 60, yoyo: true });
+      opts.back!();
+    });
+    c.add(back);
+  }
+
+  const titleX = opts.back ? w / 2 + 28 : w / 2;
+  const titleT = scene.add.text(titleX, opts.subtitle ? h / 2 - 8 : h / 2, title, {
+    fontFamily: DS.font.display,
+    fontSize: '34px',
+    color: opts.titleColor ?? '#ffffff',
+    fontStyle: 'bold',
+    stroke: 'rgba(0,20,60,0.85)',
+    strokeThickness: 4,
+  }).setOrigin(0.5);
+  c.add(titleT);
+
+  if (opts.subtitle) {
+    const subT = scene.add.text(titleX, h / 2 + 18, opts.subtitle, {
+      fontFamily: DS.font.body,
+      fontSize: '16px',
+      color: '#a8d8ff',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,20,60,0.6)',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    c.add(subT);
+  }
+
+  if (opts.right && opts.rightGlyph) {
+    const rx = w - 56, ry = h / 2;
+    const rbg = scene.add.graphics();
+    rbg.fillStyle(0x0a2a4a, 1);
+    rbg.fillCircle(rx, ry, 28);
+    rbg.fillStyle(0x2a6fb5, 1);
+    rbg.fillCircle(rx, ry, 24);
+    rbg.fillStyle(0x6ab8f0, 0.5);
+    rbg.fillCircle(rx - 3, ry - 4, 14);
+    rbg.lineStyle(2, 0xffffff, 0.7);
+    rbg.strokeCircle(rx, ry, 24);
+    const rt = scene.add.text(rx, ry + 1, opts.rightGlyph, {
+      fontSize: '26px',
+    }).setOrigin(0.5);
+    const btn = scene.add.container(rx, ry, [rbg, rt]);
+    btn.setSize(56, 56);
+    btn.setInteractive(new Phaser.Geom.Rectangle(-28, -28, 56, 56), Phaser.Geom.Rectangle.Contains);
+    btn.on('pointerdown', () => {
+      scene.tweens.add({ targets: btn, scaleX: 0.9, scaleY: 0.9, duration: 60, yoyo: true });
+      opts.right!();
+    });
+    c.add(btn);
+
+    if (opts.rightBadge) {
+      const dot = scene.add.graphics();
+      dot.fillStyle(0x600010, 1);
+      dot.fillCircle(rx + 18, ry - 18, 9);
+      dot.fillStyle(0xff4a4a, 1);
+      dot.fillCircle(rx + 17, ry - 19, 7.5);
+      dot.fillStyle(0xffb0b0, 0.9);
+      dot.fillCircle(rx + 15, ry - 21, 2.5);
+      c.add(dot);
+    }
+  }
+
+  return c;
+}
+
+// =========================================================
+// V4 货币/资源栏（横向多个 Cell，带 + 按钮）
+// =========================================================
+export function drawCurrencyBar(
+  scene: Phaser.Scene,
+  x: number, y: number, w: number, h: number,
+  items: { glyph: string; label: string; value: string | number; color?: number; onAdd?: () => void }[],
+  opts: { padX?: number } = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const padX = opts.padX ?? 4;
+  const cellW = (w - padX * (items.length - 1)) / items.length;
+
+  items.forEach((it, i) => {
+    const cellX = i * (cellW + padX);
+    const g = scene.add.graphics();
+
+    g.fillStyle(0x000000, 0.35);
+    g.fillRoundedRect(cellX + 2, 4, cellW, h - 4, 14);
+    g.fillStyle(0x0a2a4a, 1);
+    g.fillRoundedRect(cellX, 0, cellW, h, 12);
+    g.fillStyle(0x1a4a8a, 1);
+    g.fillRoundedRect(cellX + 2, 2, cellW - 4, h - 4, 11);
+    const col = it.color ?? 0x5cb3ea;
+    g.fillStyle(col, 0.35);
+    g.fillRoundedRect(cellX + 4, 4, cellW - 8, h - 8, 10);
+    g.fillStyle(0xffffff, 0.22);
+    g.fillRoundedRect(cellX + 6, 5, cellW - 12, (h - 10) * 0.4, 8);
+    g.lineStyle(1.5, 0xffffff, 0.5);
+    g.strokeRoundedRect(cellX + 2, 2, cellW - 4, h - 4, 11);
+    c.add(g);
+
+    const iconBg = scene.add.graphics();
+    iconBg.fillStyle(0x000000, 0.4);
+    iconBg.fillCircle(cellX + 26, h / 2 + 2, 16);
+    iconBg.fillStyle(col, 0.4);
+    iconBg.fillCircle(cellX + 26, h / 2, 15);
+    iconBg.lineStyle(1.5, 0xffffff, 0.4);
+    iconBg.strokeCircle(cellX + 26, h / 2, 15);
+    c.add(iconBg);
+
+    const ic = scene.add.text(cellX + 26, h / 2, it.glyph, {
+      fontSize: '20px',
+    }).setOrigin(0.5);
+    c.add(ic);
+
+    const valStr = typeof it.value === 'number' ? formatShort(it.value) : it.value;
+    const v = scene.add.text(cellX + 48, h / 2 - 4, valStr, {
+      fontFamily: DS.font.display,
+      fontSize: '22px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,0,0,0.6)',
+      strokeThickness: 2,
+    }).setOrigin(0, 0.5);
+    c.add(v);
+
+    const lab = scene.add.text(cellX + 48, h / 2 + 14, it.label, {
+      fontFamily: DS.font.body,
+      fontSize: '12px',
+      color: '#cfe6ff',
+      fontStyle: 'bold',
+    }).setOrigin(0, 0.5);
+    c.add(lab);
+
+    if (it.onAdd) {
+      const ab = scene.add.graphics();
+      ab.fillStyle(0x3a8a3a, 1);
+      ab.fillRoundedRect(cellX + cellW - 30, h / 2 - 14, 28, 28, 14);
+      ab.fillStyle(0x5aba5a, 1);
+      ab.fillRoundedRect(cellX + cellW - 29, h / 2 - 13, 26, 26, 13);
+      ab.fillStyle(0x9cff9c, 0.5);
+      ab.fillRoundedRect(cellX + cellW - 28, h / 2 - 12, 24, 12, 12);
+      ab.lineStyle(1, 0xffffff, 0.5);
+      ab.strokeRoundedRect(cellX + cellW - 29, h / 2 - 13, 26, 26, 13);
+      c.add(ab);
+
+      const plus = scene.add.text(cellX + cellW - 16, h / 2, '+', {
+        fontFamily: DS.font.display,
+        fontSize: '22px',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: 'rgba(0,60,0,0.6)',
+        strokeThickness: 2,
+      }).setOrigin(0.5);
+      c.add(plus);
+
+      const hit = scene.add.rectangle(cellX + cellW - 16, h / 2, 28, 28, 0xffffff, 0)
+        .setInteractive();
+      hit.on('pointerdown', () => it.onAdd!());
+    }
+  });
+
+  return c;
+}
+
+function formatShort(n: number): string {
+  if (n >= 1e8) return (n / 1e8).toFixed(1) + '亿';
+  if (n >= 1e4) return (n / 1e4).toFixed(1) + '万';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return String(Math.floor(n));
+}
+
+// =========================================================
+// V4 软面板（带阴影+金边+角饰）
+// =========================================================
+export interface SoftPanelOpts {
+  fill?: number;
+  fillAlpha?: number;
+  edge?: number;
+  edgeAlpha?: number;
+  cornerGold?: boolean;
+  radius?: number;
+  shadow?: boolean;
+}
+export function drawSoftPanel(
+  scene: Phaser.Scene,
+  x: number, y: number, w: number, h: number,
+  opts: SoftPanelOpts = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const g = scene.add.graphics();
+  const r = opts.radius ?? 14;
+  const fill = opts.fill ?? 0x1a1030;
+  const fillA = opts.fillAlpha ?? 0.92;
+  const edge = opts.edge ?? 0x6d4ba8;
+  const edgeA = opts.edgeAlpha ?? 0.85;
+  if (opts.shadow !== false) {
+    g.fillStyle(0x000000, 0.4);
+    g.fillRoundedRect(4, 6, w, h, r);
+  }
+  g.fillStyle(fill, fillA);
+  g.fillRoundedRect(0, 0, w, h, r);
+  g.lineStyle(2, edge, edgeA);
+  g.strokeRoundedRect(0, 0, w, h, r);
+  g.fillStyle(0xffffff, 0.06);
+  g.fillRoundedRect(2, 2, w - 4, (h - 4) * 0.35, r - 2);
+
+  if (opts.cornerGold !== false) {
+    const drawC = (cx: number, cy: number) => {
+      g.fillStyle(CARTOON.hexGold, 0.95);
+      g.fillCircle(cx, cy, 5);
+      g.fillStyle(0xfff0a0, 0.85);
+      g.fillCircle(cx - 1.5, cy - 1.5, 2);
+    };
+    drawC(10, 10);
+    drawC(w - 10, 10);
+    drawC(10, h - 10);
+    drawC(w - 10, h - 10);
+  }
+
+  c.add(g);
+  return c;
+}
+
+// =========================================================
+// V4 多边形金按钮（带阴影+渐变+描边+按压动画）
+// =========================================================
+export interface PolishedBtnOpts {
+  variant?: 'gold' | 'blue' | 'red' | 'green' | 'violet';
+  fontSize?: string;
+  glyph?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}
+export function drawPolishedButton(
+  scene: Phaser.Scene,
+  x: number, y: number, w: number, h: number,
+  label: string,
+  opts: PolishedBtnOpts = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const g = scene.add.graphics();
+
+  const variant = opts.variant ?? 'gold';
+  const palettes = {
+    gold:   { dark: 0x7a4a10, mid: 0xb07820, light: CARTOON.hexGold, edge: 0x5a3a0a, txt: '#fff0c0', stroke: '#5a3a0a' },
+    blue:   { dark: 0x10305a, mid: 0x1a4a8a, light: 0x2a7fc8, edge: 0x0a2a4a, txt: '#ffffff', stroke: '#0a2a4a' },
+    red:    { dark: 0x6a0a0a, mid: 0xa02020, light: 0xc83a3a, edge: 0x4a0a0a, txt: '#ffffff', stroke: '#4a0a0a' },
+    green:  { dark: 0x1a4a1a, mid: 0x2a7a2a, light: 0x4aaa4a, edge: 0x0a2a0a, txt: '#ffffff', stroke: '#0a2a0a' },
+    violet: { dark: 0x3a1a6a, mid: 0x5a2a9a, light: 0x8a4ad0, edge: 0x2a0a4a, txt: '#ffffff', stroke: '#2a0a4a' },
+  } as const;
+  const p = palettes[variant];
+  const r = Math.min(h / 2, 18);
+
+  if (!opts.disabled) {
+    g.fillStyle(0x000000, 0.4);
+    g.fillRoundedRect(3, 5, w, h, r);
+  }
+  g.fillStyle(p.dark, 1);
+  g.fillRoundedRect(0, 2, w, h - 2, r);
+  g.fillStyle(p.mid, 1);
+  g.fillRoundedRect(0, 0, w, h - 4, r);
+  g.fillStyle(p.light, 1);
+  g.fillRoundedRect(3, 3, w - 6, h - 10, r - 2);
+  g.fillStyle(0xffffff, opts.disabled ? 0.10 : 0.28);
+  g.fillRoundedRect(5, 5, w - 10, (h - 10) * 0.4, r - 4);
+  g.lineStyle(2, p.edge, 0.85);
+  g.strokeRoundedRect(1, 1, w - 2, h - 4, r);
+
+  c.add(g);
+
+  if (variant === 'gold') {
+    const cg = scene.add.graphics();
+    const r2 = 4;
+    [[6, 6], [w - 6, 6], [6, h - 6], [w - 6, h - 6]].forEach(([cx, cy]) => {
+      cg.fillStyle(0xfff0a0, 0.85);
+      cg.fillCircle(cx, cy, r2);
+      cg.fillStyle(0xffffff, 0.5);
+      cg.fillCircle(cx - 1, cy - 1, r2 * 0.5);
+    });
+    c.add(cg);
+  }
+
+  const fontSize = opts.fontSize ?? `${Math.floor(h * 0.45)}px`;
+  const t = scene.add.text(w / 2, h / 2 + 1, (opts.glyph ? opts.glyph + '  ' : '') + label, {
+    fontFamily: DS.font.display,
+    fontSize,
+    color: opts.disabled ? 'rgba(255,255,255,0.45)' : p.txt,
+    fontStyle: 'bold',
+    stroke: p.stroke,
+    strokeThickness: 2,
+  }).setOrigin(0.5);
+  c.add(t);
+
+  if (opts.onClick && !opts.disabled) {
+    c.setSize(w, h);
+    c.setInteractive(new Phaser.Geom.Rectangle(0, 0, w, h), Phaser.Geom.Rectangle.Contains);
+    c.on('pointerdown', () => {
+      scene.tweens.add({ targets: c, scaleX: 0.94, scaleY: 0.94, duration: 60, yoyo: true });
+      opts.onClick!();
+    });
+  }
+  return c;
+}
+
+// =========================================================
+// V4 章节标题（左金边 + 主文 + 右金边）
+// =========================================================
+export function drawSectionHeader(
+  scene: Phaser.Scene,
+  x: number, y: number, w: number, h: number,
+  title: string,
+  opts: { right?: string; onRightClick?: () => void } = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const g = scene.add.graphics();
+
+  g.fillStyle(0x000000, 0.35);
+  g.fillRoundedRect(3, 4, w, h, 8);
+  g.fillStyle(0x0a2a4a, 1);
+  g.fillRoundedRect(0, 0, w, h, 8);
+  g.fillStyle(0x1a4a8a, 1);
+  g.fillRoundedRect(3, 3, w - 6, h - 6, 7);
+  g.fillStyle(0xffffff, 0.18);
+  g.fillRoundedRect(6, 4, w - 12, (h - 8) * 0.45, 6);
+  g.fillStyle(CARTOON.hexGold, 1);
+  g.fillRect(0, 0, 6, h);
+  g.fillStyle(0xfff0a0, 0.85);
+  g.fillRect(6, 0, 1, h);
+  g.fillStyle(CARTOON.hexGold, 1);
+  g.fillRect(w - 6, 0, 6, h);
+  g.fillStyle(0xfff0a0, 0.85);
+  g.fillRect(w - 7, 0, 1, h);
+  g.lineStyle(1.5, 0x6ab8f0, 0.5);
+  g.strokeRoundedRect(3, 3, w - 6, h - 6, 7);
+
+  c.add(g);
+
+  const t = scene.add.text(18, h / 2, title, {
+    fontFamily: DS.font.display,
+    fontSize: '22px',
+    color: '#ffffff',
+    fontStyle: 'bold',
+    stroke: 'rgba(0,20,60,0.85)',
+    strokeThickness: 3,
+  }).setOrigin(0, 0.5);
+  c.add(t);
+
+  if (opts.right) {
+    const rt = scene.add.text(w - 18, h / 2, opts.right, {
+      fontFamily: DS.font.body,
+      fontSize: '16px',
+      color: '#ffd76a',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,0,0,0.6)',
+      strokeThickness: 2,
+    }).setOrigin(1, 0.5);
+    c.add(rt);
+
+    if (opts.onRightClick) {
+      const hit = scene.add.rectangle(w - 18, h / 2, 100, h, 0xffffff, 0).setOrigin(1, 0.5);
+      hit.setInteractive();
+      hit.on('pointerdown', () => opts.onRightClick!());
+      c.add(hit);
+    }
+  }
+  return c;
+}
+
+// =========================================================
+// V4 星数徽章（多颗星 + 数字）
+// =========================================================
+export function drawStarBadge(
+  scene: Phaser.Scene,
+  x: number, y: number,
+  stars: number, max = 3,
+  opts: { size?: number; showNum?: boolean } = {},
+): Phaser.GameObjects.Container {
+  const c = scene.add.container(x, y);
+  const sz = opts.size ?? 18;
+  const bg = scene.add.graphics();
+  const totalW = sz * max + 12;
+  bg.fillStyle(0x0a2a4a, 0.92);
+  bg.fillRoundedRect(-totalW / 2 - 8, -sz / 2 - 4, totalW + 16, sz + 8, 8);
+  bg.lineStyle(1, CARTOON.hexGold, 0.7);
+  bg.strokeRoundedRect(-totalW / 2 - 8, -sz / 2 - 4, totalW + 16, sz + 8, 8);
+  c.add(bg);
+
+  for (let i = 0; i < max; i++) {
+    const sx = -totalW / 2 + 4 + i * sz;
+    const lit = i < stars;
+    const starG = scene.add.graphics();
+    starG.fillStyle(lit ? 0xfff0a0 : 0x4a5a78, 1);
+    starG.fillCircle(sx, 0, sz * 0.4);
+    if (lit) {
+      starG.fillStyle(0xffffff, 0.8);
+      starG.fillCircle(sx - sz * 0.15, -sz * 0.15, sz * 0.15);
+    }
+    c.add(starG);
+  }
+
+  if (opts.showNum) {
+    const t = scene.add.text(totalW / 2 + 12, 0, String(stars), {
+      fontFamily: DS.font.display,
+      fontSize: '16px',
+      color: '#ffd76a',
+      fontStyle: 'bold',
+      stroke: 'rgba(0,0,0,0.6)',
+      strokeThickness: 2,
+    }).setOrigin(0.5);
+    c.add(t);
+  }
+  return c;
+}

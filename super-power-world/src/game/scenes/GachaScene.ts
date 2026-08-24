@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../Game';
+import { audio } from '@/core/audio';
 import { backBar, button, panel, toast } from '../ui/widgets';
 import { useGachaStore } from '@/stores/gachaStore';
 import { usePlayerStore } from '@/stores/playerStore';
@@ -7,7 +8,7 @@ import { HERO_MAP } from '@/data/heroes';
 import { getHeroPortrait } from '@/core/assetGen';
 import type { GachaPoolType } from '@/types';
 import { burst, ringPulse, starBurst, floatingSparkles, floatingText } from '../effects/particles';
-import { DS, C, drawFrame, drawStarStuddedBackground, drawOrnamentDivider } from '../ui/designSystem';
+import { DS, C, drawFrame, drawStarStuddedBackground, drawOrnamentDivider, drawTopNav } from '../ui/designSystem';
 
 export class GachaScene extends Phaser.Scene {
   private currentPool: GachaPoolType = 'standard';
@@ -19,7 +20,10 @@ export class GachaScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(DS.color.bgDeep);
     this.drawStageBackdrop();
-    backBar(this, '召唤大厅', () => this.scene.start('MainScene'));
+    drawTopNav(this, '召唤大厅', {
+      back: () => { audio.playSfx?.('click'); this.scene.start('MainScene'); },
+      subtitle: '召唤你的超能英雄',
+    });
     this.drawAnimatedBackground();
     this.drawPools();
     this.drawPulls();
