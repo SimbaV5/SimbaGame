@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <title>超能世界 · Super Power World</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #1a1a2e;
+        overflow: hidden;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: #fff;
+        width: 100%;
+        height: 100%;
+      }
+      #app {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(ellipse at center, #2a2a4e 0%, #0e0e1e 100%);
+      }
+      #game-container {
+        position: relative;
+        width: min(100vw, calc(100vh * 9 / 16));
+        height: min(100vh, calc(100vw * 16 / 9));
+        background: #000;
+        box-shadow: 0 0 40px rgba(0,0,0,0.6);
+        overflow: hidden;
+      }
+      #loading {
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        z-index: 10;
+      }
+      #loading .bar {
+        margin: 12px auto 0;
+        width: 220px; height: 12px;
+        background: rgba(255,255,255,0.12);
+        border-radius: 6px; overflow: hidden;
+      }
+      #loading .fill {
+        height: 100%; width: 0%;
+        background: linear-gradient(90deg, #6ad1ff, #c084fc);
+        transition: width 0.3s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="game-container">
+        <div id="loading">
+          <div>超能世界</div>
+          <div class="bar"><div class="fill" id="loading-fill"></div></div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
